@@ -100,3 +100,7 @@ InitTestScene*.unity*
 
 # LICENSE.meta
 LICENSE.meta
+
+# Othr files
+/Spec/*
+Spec.meta

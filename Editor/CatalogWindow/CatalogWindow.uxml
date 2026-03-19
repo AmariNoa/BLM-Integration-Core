@@ -5,6 +5,7 @@
             <ui:VisualElement style="flex-grow: 1; max-height: 80px; min-height: 80px;">
                 <ui:DropdownField name="DisplayModeField" />
                 <ui:DropdownField name="ListSelectorField" />
+                <ui:Label tabindex="-1" text="No list is available." parse-escape-sequences="true" display-tooltip-when-elided="true" name="ListModeEmptyStateLabel" style="display: none; -unity-text-align: middle-left; white-space: normal;" />
             </ui:VisualElement>
             <ui:VisualElement style="flex-grow: 1;">
                 <ui:Label tabindex="-1" text="Sort" parse-escape-sequences="true" display-tooltip-when-elided="true" style="-unity-text-align: middle-center;" />
@@ -58,7 +59,7 @@
                 </ui:VisualElement>
                 <ui:VisualElement name="DetailThumbnailImage" style="flex-grow: 1; margin-top: 5px; margin-right: 5px; margin-bottom: 5px; margin-left: 5px;" />
                 <ui:VisualElement style="flex-grow: 1;">
-                    <ui:ListView name="DetailFileListView" />
+                    <ui:ListView name="DetailFileListView" style="flex-grow: 1;" />
                     <ui:Button text="Select all file(s)" parse-escape-sequences="true" display-tooltip-when-elided="true" name="SelectAllFilesButton" />
                 </ui:VisualElement>
                 <ui:VisualElement style="flex-grow: 1; flex-direction: column-reverse; max-height: 25px; min-height: 25px;">
@@ -84,5 +85,8 @@
                 </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
+    </ui:VisualElement>
+    <ui:VisualElement name="LoadingOverlay" style="position: absolute; left: 0; top: 0; right: 0; bottom: 0; display: none; justify-content: center; align-items: center; background-color: rgba(0, 0, 0, 0.35);">
+        <ui:Label tabindex="-1" text="Loading..." parse-escape-sequences="true" display-tooltip-when-elided="true" style="-unity-text-align: middle-center;" />
     </ui:VisualElement>
 </ui:UXML>
