@@ -1,0 +1,26 @@
+{
+    "name": "com.amari-noa.blm-integration-core.editor",
+    "rootNamespace": "com.amari_noa.blm_integration_core.editor",
+    "references": [
+        "com.amari-noa.unitypackage-pipeline-core.editor",
+        "com.amari-noa.unity-editor-localization-core.editor",
+        "com.amari-noa.sqlite-net-vpm"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.amari-noa.sqlite-net-vpm",
+            "expression": "",
+            "define": "AMARI_BLM_INTEGRATION_CORE_HAS_SQLITE_NET_VPM"
+        }
+    ],
+    "noEngineReferences": false
+}

@@ -1,0 +1,108 @@
+{
+  "languageDisplayName": "日本語",
+  "blm": {
+    "window": {
+      "title": "BLMウィンドウ"
+    },
+    "display_mode": {
+      "all": "購入済み全件",
+      "by_list": "BLMリスト"
+    },
+    "list": {
+      "empty": "利用可能なリストがありません。"
+    },
+    "sort": {
+      "label": "並び替え",
+      "product_name": "商品名",
+      "shop_name": "ショップ名",
+      "registered_at": "登録日時",
+      "published_at": "公開日時",
+      "asc": "昇順",
+      "desc": "降順"
+    },
+    "filter": {
+      "category": "カテゴリフィルター",
+      "subcategory": "サブカテゴリフィルター",
+      "age": {
+        "label": "年齢制限フィルター",
+        "any": "指定なし",
+        "all_ages": "全年齢のみ",
+        "r18": "R-18のみ"
+      },
+      "shop": "ショップフィルター",
+      "shop_search_placeholder": "ショップを検索...",
+      "shop_clear": "選択したショップをクリア",
+      "tag": "タグフィルター",
+      "tag_search_placeholder": "タグを検索...",
+      "tag_clear": "選択したタグをクリア",
+      "applied_count": "{0} 件のフィルターを適用中"
+    },
+    "reload_db": "DB再読み込み",
+    "editor_language": {
+      "label": "言語"
+    },
+    "search": {
+      "label": "検索",
+      "placeholder": ""
+    },
+    "page_size": "ページサイズ",
+    "detail": {
+      "product_name": "商品名",
+      "product_files": "商品ファイル",
+      "folder_path": "フォルダーパス",
+      "deselect_all_files": "すべてのファイル選択を解除",
+      "select_all_files": "すべてのファイルを選択"
+    },
+    "selected_items": "選択中アイテム",
+    "button": {
+      "cancel": "キャンセル",
+      "import": "インポート"
+    },
+    "loading": "読み込み中...",
+    "common": {
+      "not_set": "未設定",
+      "all": "すべて",
+      "yes": "はい",
+      "no": "いいえ",
+      "skip": "スキップ"
+    },
+    "import": {
+      "choose_per_file": "ファイルごとに選択",
+      "overwrite": "上書き",
+      "duplicate_detected": {
+        "title": "重複ファイルを検出",
+        "message": "重複ファイルが見つかりました。インポートを続行しますか？"
+      },
+      "overwrite_options": {
+        "title": "上書きオプション",
+        "message": "重複ファイルをすべて上書きしますか？"
+      },
+      "file_conflict": {
+        "title": "ファイル競合",
+        "message": "このファイルを上書きしますか？"
+      },
+      "completed": {
+        "title": "BLMウィンドウ",
+        "message": "インポートが完了しました。"
+      }
+    },
+    "thumbnail_cache": {
+      "window_open": {
+        "title": "BLMウィンドウを開いています",
+        "message": "サムネイルキャッシュを削除する前に BLM ウィンドウを閉じてください。"
+      },
+      "cleanup_completed": {
+        "title": "BLM Integration Core",
+        "message": "サムネイルキャッシュのクリーンアップが完了しました。"
+      }
+    },
+    "menu": {
+      "window": "BLMウィンドウ",
+      "clear_thumbnail_cache": "サムネイルキャッシュを削除"
+    },
+    "error": {
+      "db_load_failed": "BLMデータベースの読み込みに失敗しました。",
+      "context_invalid": "必須のピッカーコンテキストサービスが不足しています。"
+    }
+  }
+}

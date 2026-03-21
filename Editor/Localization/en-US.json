@@ -1,0 +1,108 @@
+{
+  "languageDisplayName": "English",
+  "blm": {
+    "window": {
+      "title": "BLM Window"
+    },
+    "display_mode": {
+      "all": "All Purchased",
+      "by_list": "BLM List"
+    },
+    "list": {
+      "empty": "No list is available."
+    },
+    "sort": {
+      "label": "Sort",
+      "product_name": "Product Name",
+      "shop_name": "Shop Name",
+      "registered_at": "Registered At",
+      "published_at": "Published At",
+      "asc": "Ascending",
+      "desc": "Descending"
+    },
+    "filter": {
+      "category": "Category Filter",
+      "subcategory": "SubCategory Filter",
+      "age": {
+        "label": "Age Restriction Filter",
+        "any": "Any",
+        "all_ages": "All Ages Only",
+        "r18": "R-18 Only"
+      },
+      "shop": "Shop Filter",
+      "shop_search_placeholder": "Search shops...",
+      "shop_clear": "Clear selected shop(s)",
+      "tag": "Tag Filter",
+      "tag_search_placeholder": "Search tags...",
+      "tag_clear": "Clear selected tag(s)",
+      "applied_count": "{0} filter(s) active"
+    },
+    "reload_db": "ReloadDB",
+    "editor_language": {
+      "label": "Language"
+    },
+    "search": {
+      "label": "Search",
+      "placeholder": ""
+    },
+    "page_size": "Page size",
+    "detail": {
+      "product_name": "Product name",
+      "product_files": "Product file(s)",
+      "folder_path": "Folder path",
+      "deselect_all_files": "DeSelect all file(s)",
+      "select_all_files": "Select all file(s)"
+    },
+    "selected_items": "Selected Items",
+    "button": {
+      "cancel": "Cancel",
+      "import": "Import"
+    },
+    "loading": "Loading...",
+    "common": {
+      "not_set": "Not Set",
+      "all": "All",
+      "yes": "Yes",
+      "no": "No",
+      "skip": "Skip"
+    },
+    "import": {
+      "choose_per_file": "Choose Per File",
+      "overwrite": "Overwrite",
+      "duplicate_detected": {
+        "title": "Duplicate Files Detected",
+        "message": "Duplicate files were found. Continue importing?"
+      },
+      "overwrite_options": {
+        "title": "Overwrite Options",
+        "message": "Overwrite all duplicate files?"
+      },
+      "file_conflict": {
+        "title": "File Conflict",
+        "message": "Overwrite this file?"
+      },
+      "completed": {
+        "title": "BLM Window",
+        "message": "Import completed."
+      }
+    },
+    "thumbnail_cache": {
+      "window_open": {
+        "title": "BLM Window Is Open",
+        "message": "Close the BLM Window before clearing thumbnail cache."
+      },
+      "cleanup_completed": {
+        "title": "BLM Integration Core",
+        "message": "Thumbnail cache cleanup completed."
+      }
+    },
+    "menu": {
+      "window": "BLM Window",
+      "clear_thumbnail_cache": "Clear thumbnail cache"
+    },
+    "error": {
+      "db_load_failed": "Failed to load BLM database.",
+      "context_invalid": "Required picker context services are missing."
+    }
+  }
+}
