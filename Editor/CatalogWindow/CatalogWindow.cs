@@ -533,6 +533,7 @@ namespace com.amari_noa.blm_integration_core.editor
                 }
 
                 UpdateListModeState();
+                ForceResetCategoryAndSubCategoryFiltersToAll();
                 PruneSelectionsOutsideCurrentBaseSet();
                 ApplyFilter(true);
             });
@@ -543,6 +544,7 @@ namespace com.amari_noa.blm_integration_core.editor
                     return;
                 }
 
+                ForceResetCategoryAndSubCategoryFiltersToAll();
                 PruneSelectionsOutsideCurrentBaseSet();
                 ApplyFilter(true);
             });
@@ -817,7 +819,8 @@ namespace com.amari_noa.blm_integration_core.editor
             var rebuiltShopCandidates = false;
             if (!string.Equals(_lastShopAggregationKey, shopAggregationKey, StringComparison.Ordinal))
             {
-                RebuildShopChoices(baseSet);
+                var shopAggregationSource = ApplyCategoryAndSubCategoryFiltersForAggregation(baseSet);
+                RebuildShopChoices(shopAggregationSource);
                 RebuildVisibleShops();
                 _lastShopAggregationKey = shopAggregationKey;
                 rebuiltShopCandidates = true;
@@ -827,7 +830,8 @@ namespace com.amari_noa.blm_integration_core.editor
             var rebuiltTagCandidates = false;
             if (!string.Equals(_lastTagAggregationKey, tagAggregationKey, StringComparison.Ordinal))
             {
-                var tagAggregationSource = ApplyShopFilterForAggregation(baseSet);
+                var shopAggregationSource = ApplyCategoryAndSubCategoryFiltersForAggregation(baseSet);
+                var tagAggregationSource = ApplyShopFilterForAggregation(shopAggregationSource);
                 RebuildTagChoices(tagAggregationSource);
                 RebuildVisibleTags();
                 _lastTagAggregationKey = tagAggregationKey;
@@ -918,6 +922,33 @@ namespace com.amari_noa.blm_integration_core.editor
             return list;
         }
 
+        private List<BlmItemRecord> ApplyCategoryAndSubCategoryFiltersForAggregation(IEnumerable<BlmItemRecord> source)
+        {
+            var list = source?.ToList() ?? new List<BlmItemRecord>();
+
+            var category = SelectedCategoryValue();
+            if (category == NotSetToken)
+            {
+                list = list.Where(item => string.IsNullOrWhiteSpace(item.Category)).ToList();
+            }
+            else if (!string.IsNullOrWhiteSpace(category))
+            {
+                list = list.Where(item => item.Category == category).ToList();
+            }
+
+            var subCategory = SelectedSubCategoryValue();
+            if (subCategory == NotSetToken)
+            {
+                list = list.Where(item => string.IsNullOrWhiteSpace(item.SubCategory)).ToList();
+            }
+            else if (!string.IsNullOrWhiteSpace(subCategory))
+            {
+                list = list.Where(item => item.SubCategory == subCategory).ToList();
+            }
+
+            return list;
+        }
+
         private List<BlmItemRecord> ApplyShopFilterForAggregation(IEnumerable<BlmItemRecord> source)
         {
             var list = source?.ToList() ?? new List<BlmItemRecord>();
@@ -954,17 +985,19 @@ namespace com.amari_noa.blm_integration_core.editor
 
         private string BuildShopAggregationKey()
         {
+            var category = SelectedCategoryValue();
+            var subCategory = SelectedSubCategoryValue();
             if (_displayModeField.index != 1)
             {
-                return "all";
+                return $"all|cat:{category}|sub:{subCategory}";
             }
 
             if (_listSelectorField.index < 0 || _listSelectorField.index >= _db.Lists.Count)
             {
-                return "list:none";
+                return $"list:none|cat:{category}|sub:{subCategory}";
             }
 
-            return $"list:{_db.Lists[_listSelectorField.index].Id}";
+            return $"list:{_db.Lists[_listSelectorField.index].Id}|cat:{category}|sub:{subCategory}";
         }
 
         private string BuildTagAggregationKey(string shopAggregationKey)
@@ -1119,6 +1152,19 @@ namespace com.amari_noa.blm_integration_core.editor
         private string SelectedSubCategoryValue()
         {
             return _subCategoryFilterField.index >= 0 && _subCategoryFilterField.index < _subCategoryValues.Count ? _subCategoryValues[_subCategoryFilterField.index] : string.Empty;
+        }
+
+        private void ForceResetCategoryAndSubCategoryFiltersToAll()
+        {
+            WithSuppressedUiCallbacks(() =>
+            {
+                _categoryFilterField.index = _categoryValues.Count > 0 ? 0 : -1;
+                RebuildSubCategoryChoices();
+                _subCategoryFilterField.index = _subCategoryValues.Count > 0 ? 0 : -1;
+            });
+
+            _lastShopAggregationKey = null;
+            _lastTagAggregationKey = null;
         }
 
         private void UpdateListModeState()
