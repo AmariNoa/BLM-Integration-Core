@@ -139,7 +139,7 @@ namespace com.amari_noa.blm_integration_core.editor
                 var relative = Path.GetRelativePath(rootFolderPath, sourcePath);
                 if (!string.IsNullOrWhiteSpace(relative) && !relative.StartsWith("..", StringComparison.Ordinal))
                 {
-                    return relative;
+                    return CollapseRedundantTopLevelDirectory(rootFolderPath, relative);
                 }
             }
             catch
@@ -148,6 +148,62 @@ namespace com.amari_noa.blm_integration_core.editor
             }
 
             return Path.GetFileName(sourcePath) ?? sourcePath;
+        }
+
+        private static string CollapseRedundantTopLevelDirectory(string rootFolderPath, string relativePath)
+        {
+            if (string.IsNullOrWhiteSpace(rootFolderPath) || string.IsNullOrWhiteSpace(relativePath))
+            {
+                return relativePath;
+            }
+
+            var segments = relativePath
+                .Replace('\\', '/')
+                .Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+            if (segments.Length < 3)
+            {
+                return relativePath;
+            }
+
+            var topLevel = segments[0];
+            var secondLevel = segments[1];
+            if (!string.Equals(topLevel, secondLevel, StringComparison.OrdinalIgnoreCase))
+            {
+                return relativePath;
+            }
+
+            var topLevelDirectoryPath = Path.Combine(rootFolderPath, topLevel);
+            if (!Directory.Exists(topLevelDirectoryPath))
+            {
+                return relativePath;
+            }
+
+            string[] childDirectories;
+            try
+            {
+                childDirectories = Directory.GetDirectories(topLevelDirectoryPath);
+            }
+            catch
+            {
+                return relativePath;
+            }
+
+            if (childDirectories.Length != 1)
+            {
+                return relativePath;
+            }
+
+            var onlyChildDirectoryName = Path.GetFileName(
+                childDirectories[0].TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            if (!string.Equals(onlyChildDirectoryName, topLevel, StringComparison.OrdinalIgnoreCase))
+            {
+                return relativePath;
+            }
+
+            var collapsedSegments = new string[segments.Length - 1];
+            collapsedSegments[0] = topLevel;
+            Array.Copy(segments, 2, collapsedSegments, 1, segments.Length - 2);
+            return string.Join("/", collapsedSegments);
         }
 
         private static string ToAbsolutePath(string assetPath)
