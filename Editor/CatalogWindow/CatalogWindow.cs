@@ -533,6 +533,7 @@ namespace com.amari_noa.blm_integration_core.editor
                 }
 
                 UpdateListModeState();
+                PruneSelectionsOutsideCurrentBaseSet();
                 ApplyFilter(true);
             });
             _listSelectorField.RegisterValueChangedCallback(_ =>
@@ -542,6 +543,7 @@ namespace com.amari_noa.blm_integration_core.editor
                     return;
                 }
 
+                PruneSelectionsOutsideCurrentBaseSet();
                 ApplyFilter(true);
             });
             _sortKeyField.RegisterValueChangedCallback(_ =>
@@ -925,6 +927,29 @@ namespace com.amari_noa.blm_integration_core.editor
             }
 
             return list.Where(item => _selectedShops.Contains(item.ShopName)).ToList();
+        }
+
+        private void PruneSelectionsOutsideCurrentBaseSet()
+        {
+            var baseSet = ResolveBaseSet();
+            var validShops = new HashSet<string>(
+                baseSet.Select(item => item?.ShopName).Where(shop => !string.IsNullOrWhiteSpace(shop)),
+                StringComparer.Ordinal);
+            var validTags = new HashSet<string>(
+                baseSet
+                    .Where(item => item?.Tags != null)
+                    .SelectMany(item => item.Tags)
+                    .Where(tag => !string.IsNullOrWhiteSpace(tag)),
+                StringComparer.Ordinal);
+
+            var removedShopCount = _selectedShops.RemoveWhere(shop => !validShops.Contains(shop));
+            var removedTagCount = _selectedTags.RemoveWhere(tag => !validTags.Contains(tag));
+
+            if (removedShopCount > 0 || removedTagCount > 0)
+            {
+                PerfLog(
+                    $"PruneSelectionsOutsideCurrentBaseSet removedShops={removedShopCount}, removedTags={removedTagCount}, baseSetCount={baseSet.Count}");
+            }
         }
 
         private string BuildShopAggregationKey()
