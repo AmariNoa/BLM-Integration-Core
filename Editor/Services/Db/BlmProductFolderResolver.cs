@@ -7,7 +7,7 @@ using System.Text;
 
 namespace com.amari_noa.blm_integration_core.editor
 {
-    internal sealed class AmariBlmProductFolderResolver
+    internal sealed class BlmProductFolderResolver
     {
         private const string UnresolvedPathSentinel = "<UNRESOLVED>";
         private readonly Dictionary<string, string> _resolvedPathCache = new Dictionary<string, string>(StringComparer.Ordinal);

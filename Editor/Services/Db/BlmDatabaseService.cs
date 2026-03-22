@@ -11,10 +11,10 @@ using SQLite;
 
 namespace com.amari_noa.blm_integration_core.editor
 {
-    internal sealed class AmariBlmDatabaseLoadResult
+    internal sealed class BlmDatabaseLoadResult
     {
-        public List<AmariBlmItemRecord> Items = new List<AmariBlmItemRecord>();
-        public List<AmariBlmListRecord> Lists = new List<AmariBlmListRecord>();
+        public List<BlmItemRecord> Items = new List<BlmItemRecord>();
+        public List<BlmListRecord> Lists = new List<BlmListRecord>();
         public Dictionary<long, HashSet<string>> ListProductIdsByListId = new Dictionary<long, HashSet<string>>();
         public string LibraryRootPath = string.Empty;
         public string ErrorMessage = string.Empty;
@@ -22,16 +22,16 @@ namespace com.amari_noa.blm_integration_core.editor
         public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
     }
 
-    internal sealed class AmariBlmDatabaseService
+    internal sealed class BlmDatabaseService
     {
-        private readonly AmariBlmProductFolderResolver _folderResolver;
+        private readonly BlmProductFolderResolver _folderResolver;
 
         public string DatabasePath { get; set; }
 
-        public AmariBlmDatabaseService(AmariBlmProductFolderResolver folderResolver = null)
+        public BlmDatabaseService(BlmProductFolderResolver folderResolver = null)
         {
-            _folderResolver = folderResolver ?? new AmariBlmProductFolderResolver();
-            DatabasePath = AmariBlmConstants.GetDefaultBlmDatabasePath();
+            _folderResolver = folderResolver ?? new BlmProductFolderResolver();
+            DatabasePath = BlmConstants.GetDefaultBlmDatabasePath();
         }
 
         public void ClearCaches()
@@ -39,9 +39,9 @@ namespace com.amari_noa.blm_integration_core.editor
             _folderResolver.ClearCache();
         }
 
-        public AmariBlmDatabaseLoadResult Load()
+        public BlmDatabaseLoadResult Load()
         {
-            var result = new AmariBlmDatabaseLoadResult();
+            var result = new BlmDatabaseLoadResult();
             var totalStopwatch = System.Diagnostics.Stopwatch.StartNew();
             PerfLog($"Load start. databasePath='{DatabasePath}'");
 
@@ -95,7 +95,7 @@ namespace com.amari_noa.blm_integration_core.editor
                     var totalEnumeratedFiles = 0;
                     foreach (var row in productRows)
                     {
-                        var item = new AmariBlmItemRecord
+                        var item = new BlmItemRecord
                         {
                             ProductId = row.id.ToString(CultureInfo.InvariantCulture),
                             ProductName = NormalizeText(row.name),
@@ -296,9 +296,9 @@ namespace com.amari_noa.blm_integration_core.editor
         }
 #endif
 
-        private static List<AmariBlmFileRecord> LoadFiles(string rootFolderPath)
+        private static List<BlmFileRecord> LoadFiles(string rootFolderPath)
         {
-            var files = new List<AmariBlmFileRecord>();
+            var files = new List<BlmFileRecord>();
             if (string.IsNullOrWhiteSpace(rootFolderPath) || !Directory.Exists(rootFolderPath))
             {
                 return files;
@@ -308,7 +308,7 @@ namespace com.amari_noa.blm_integration_core.editor
             {
                 foreach (var path in Directory.EnumerateFiles(rootFolderPath, "*", SearchOption.AllDirectories))
                 {
-                    files.Add(new AmariBlmFileRecord
+                    files.Add(new BlmFileRecord
                     {
                         FileName = Path.GetFileName(path) ?? string.Empty,
                         FullPath = path,
@@ -376,9 +376,9 @@ namespace com.amari_noa.blm_integration_core.editor
             yield return Path.Combine(rootPath, shopSubdomain, productId);
         }
 
-        private static AmariBlmListRecord MapListRecord(BlmListRow row)
+        private static BlmListRecord MapListRecord(BlmListRow row)
         {
-            return new AmariBlmListRecord
+            return new BlmListRecord
             {
                 Id = row.id,
                 Title = NormalizeText(row.title),
@@ -424,34 +424,34 @@ namespace com.amari_noa.blm_integration_core.editor
             return parsed?.UtcDateTime;
         }
 
-        private static AmariBlmAgeRestriction MapAgeRestriction(long? rawAdult)
+        private static BlmAgeRestriction MapAgeRestriction(long? rawAdult)
         {
             if (!rawAdult.HasValue)
             {
-                return AmariBlmAgeRestriction.Unknown;
+                return BlmAgeRestriction.Unknown;
             }
 
             if (rawAdult.Value == 1)
             {
-                return AmariBlmAgeRestriction.R18;
+                return BlmAgeRestriction.R18;
             }
 
             if (rawAdult.Value == 0)
             {
-                return AmariBlmAgeRestriction.AllAges;
+                return BlmAgeRestriction.AllAges;
             }
 
-            return AmariBlmAgeRestriction.Unknown;
+            return BlmAgeRestriction.Unknown;
         }
 
         private static void PerfLog(string message)
         {
-            if (!AmariBlmConstants.EnablePerformanceLogging)
+            if (!BlmConstants.EnablePerformanceLogging)
             {
                 return;
             }
 
-            Debug.Log($"{AmariBlmConstants.PerformanceLogPrefix}[DB] {message}");
+            Debug.Log($"{BlmConstants.PerformanceLogPrefix}[DB] {message}");
         }
 
         private const string ProductSql = @"

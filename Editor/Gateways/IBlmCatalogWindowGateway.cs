@@ -2,9 +2,9 @@ using System;
 
 namespace com.amari_noa.blm_integration_core.editor
 {
-    public interface IAmariBlmCatalogWindowGateway
+    public interface IBlmCatalogWindowGateway
     {
-        event Action<AmariBlmImportBatchRequest> BatchRequestConfirmed;
-        void Open(AmariBlmPickerContext context);
+        event Action<BlmImportBatchRequest> BatchRequestConfirmed;
+        void Open(BlmPickerContext context);
     }
 }

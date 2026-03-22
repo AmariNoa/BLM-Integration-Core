@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace com.amari_noa.blm_integration_core.editor
 {
-    public interface IAmariBlmDestinationAssetPathUpdater
+    public interface IBlmDestinationAssetPathUpdater
     {
         void UpdateDestinationAssetPaths(
             string batchId,

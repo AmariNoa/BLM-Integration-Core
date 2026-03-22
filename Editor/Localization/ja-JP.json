@@ -2,11 +2,11 @@
   "languageDisplayName": "日本語",
   "blm": {
     "window": {
-      "title": "BLMウィンドウ"
+      "title": "BLM Integration Core"
     },
     "display_mode": {
       "all": "購入済み全件",
-      "by_list": "BLMリスト"
+      "by_list": "リスト"
     },
     "list": {
       "empty": "利用可能なリストがありません。"
@@ -50,10 +50,22 @@
       "product_name": "商品名",
       "product_files": "商品ファイル",
       "folder_path": "フォルダーパス",
-      "deselect_all_files": "すべてのファイル選択を解除",
-      "select_all_files": "すべてのファイルを選択"
+      "other_files": "その他ファイル",
+      "deselect_all_files": "すべて選択解除",
+      "select_all_files": "すべて選択"
     },
-    "selected_items": "選択中アイテム",
+    "selected_items": {
+      "title": "選択中のアイテム",
+      "deselect_all_products_files": "すべて選択解除",
+      "filter": {
+        "selected_and_preferred": "選択ファイル + 優先ファイル",
+        "selected_only": "選択ファイルのみ",
+        "all": "全て"
+      }
+    },
+    "import_queue": {
+      "title": "インポートキュー"
+    },
     "button": {
       "cancel": "キャンセル",
       "import": "インポート"

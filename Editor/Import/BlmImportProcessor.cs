@@ -8,16 +8,17 @@ using UnityEngine;
 
 namespace com.amari_noa.blm_integration_core.editor
 {
-    public sealed class AmariBlmImportProcessor : IAmariBlmImportProcessorGateway, IAmariBlmDestinationAssetPathUpdater
+    public sealed class BlmImportProcessor : IBlmImportProcessorGateway, IBlmDestinationAssetPathUpdater
     {
         private readonly object _syncRoot = new object();
-        private readonly Dictionary<string, AmariBlmImportRequestItem> _trackedItems = new Dictionary<string, AmariBlmImportRequestItem>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, BlmImportRequestItem> _trackedItems = new Dictionary<string, BlmImportRequestItem>(StringComparer.OrdinalIgnoreCase);
 
-        public static AmariBlmImportProcessor Shared { get; } = new AmariBlmImportProcessor();
+        public static BlmImportProcessor Shared { get; } = new BlmImportProcessor();
 
-        public event Action<AmariBlmImportBatchResultContext> ImportBatchCompleted;
+        public event Action<BlmImportBatchResultContext> ImportBatchCompleted;
+        public event Action<string, IReadOnlyList<BlmImportRequestItem>> ImportQueueUpdated;
 
-        public void Execute(AmariBlmImportBatchRequest request, AmariBlmPickerContext context)
+        public void Execute(BlmImportBatchRequest request, BlmPickerContext context)
         {
             _ = ExecuteInternalAsync(request, context);
         }
@@ -45,9 +46,9 @@ namespace com.amari_noa.blm_integration_core.editor
             }
         }
 
-        private async Task ExecuteInternalAsync(AmariBlmImportBatchRequest request, AmariBlmPickerContext context)
+        private async Task ExecuteInternalAsync(BlmImportBatchRequest request, BlmPickerContext context)
         {
-            var result = new AmariBlmImportBatchResultContext();
+            var result = new BlmImportBatchResultContext();
             if (request != null)
             {
                 result.BatchId = request.BatchId ?? string.Empty;
@@ -79,8 +80,10 @@ namespace com.amari_noa.blm_integration_core.editor
             }
 
             RegisterTrackedItems(request);
+            var remainingQueue = request.Items?.ToList() ?? new List<BlmImportRequestItem>();
+            RaiseImportQueueUpdated(request.BatchId, remainingQueue);
 
-            var importer = new AmariBlmNonUnityPackageImporter();
+            var importer = new BlmNonUnityPackageImporter();
             var batchDestinations = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             try
@@ -96,10 +99,14 @@ namespace com.amari_noa.blm_integration_core.editor
                             result.FailedItems.Add(item);
                             result.ImportStatus = unityResult.Status;
                             result.ErrorMessage = unityResult.ErrorMessage;
+                            RemoveFirstRemainingQueueItem(remainingQueue);
+                            RaiseImportQueueUpdated(request.BatchId, remainingQueue);
                             break;
                         }
 
                         result.SucceededItems.Add(item);
+                        RemoveFirstRemainingQueueItem(remainingQueue);
+                        RaiseImportQueueUpdated(request.BatchId, remainingQueue);
                         continue;
                     }
 
@@ -109,6 +116,8 @@ namespace com.amari_noa.blm_integration_core.editor
                         result.FailedItems.Add(item);
                         result.ImportStatus = AmariUnityPackagePipelineOperationStatus.Failed;
                         result.ErrorMessage = nonUnityResult.ErrorMessage;
+                        RemoveFirstRemainingQueueItem(remainingQueue);
+                        RaiseImportQueueUpdated(request.BatchId, remainingQueue);
                         break;
                     }
 
@@ -121,6 +130,8 @@ namespace com.amari_noa.blm_integration_core.editor
                         item.SourcePath,
                         destinationPaths);
                     result.SucceededItems.Add(item);
+                    RemoveFirstRemainingQueueItem(remainingQueue);
+                    RaiseImportQueueUpdated(request.BatchId, remainingQueue);
                 }
             }
             catch (Exception ex)
@@ -141,10 +152,20 @@ namespace com.amari_noa.blm_integration_core.editor
             RaiseBatchCompleted(result);
         }
 
+        private static void RemoveFirstRemainingQueueItem(List<BlmImportRequestItem> remainingQueue)
+        {
+            if (remainingQueue == null || remainingQueue.Count == 0)
+            {
+                return;
+            }
+
+            remainingQueue.RemoveAt(0);
+        }
+
         private async Task<UnityPackageImportOutcome> ExecuteUnityPackageImportAsync(
-            AmariBlmImportRequestItem item,
+            BlmImportRequestItem item,
             string batchId,
-            AmariBlmPickerContext context)
+            BlmPickerContext context)
         {
             if (item == null || string.IsNullOrWhiteSpace(item.SourcePath))
             {
@@ -213,7 +234,7 @@ namespace com.amari_noa.blm_integration_core.editor
             }
         }
 
-        private void RegisterTrackedItems(AmariBlmImportBatchRequest request)
+        private void RegisterTrackedItems(BlmImportBatchRequest request)
         {
             lock (_syncRoot)
             {
@@ -225,7 +246,7 @@ namespace com.amari_noa.blm_integration_core.editor
             }
         }
 
-        private void UnregisterTrackedItems(AmariBlmImportBatchRequest request)
+        private void UnregisterTrackedItems(BlmImportBatchRequest request)
         {
             lock (_syncRoot)
             {
@@ -237,7 +258,7 @@ namespace com.amari_noa.blm_integration_core.editor
             }
         }
 
-        private void RaiseBatchCompleted(AmariBlmImportBatchResultContext result)
+        private void RaiseBatchCompleted(BlmImportBatchResultContext result)
         {
             try
             {
@@ -246,6 +267,21 @@ namespace com.amari_noa.blm_integration_core.editor
             catch (Exception ex)
             {
                 Debug.LogError($"[BLM Integration Core] ImportBatchCompleted callback failed: {ex.Message}");
+            }
+        }
+
+        private void RaiseImportQueueUpdated(string batchId, IReadOnlyList<BlmImportRequestItem> remainingItems)
+        {
+            try
+            {
+                var snapshot = remainingItems?
+                    .Where(item => item != null)
+                    .ToArray() ?? Array.Empty<BlmImportRequestItem>();
+                ImportQueueUpdated?.Invoke(batchId ?? string.Empty, snapshot);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[BLM Integration Core] ImportQueueUpdated callback failed: {ex.Message}");
             }
         }
 

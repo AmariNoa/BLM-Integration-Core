@@ -12,24 +12,24 @@ using UnityEngine.Networking;
 
 namespace com.amari_noa.blm_integration_core.editor
 {
-    internal sealed class AmariBlmThumbnailCacheService
+    internal sealed class BlmThumbnailCacheService
     {
         private readonly object _syncRoot = new object();
         private readonly Dictionary<string, Texture2D> _memoryCache = new Dictionary<string, Texture2D>(StringComparer.Ordinal);
         private readonly Dictionary<string, LinkedListNode<string>> _memoryCacheNodes = new Dictionary<string, LinkedListNode<string>>(StringComparer.Ordinal);
         private readonly LinkedList<string> _memoryCacheLru = new LinkedList<string>();
         private readonly Dictionary<string, Task<string>> _inflightDownloads = new Dictionary<string, Task<string>>(StringComparer.Ordinal);
-        private readonly SemaphoreSlim _requestSemaphore = new SemaphoreSlim(AmariBlmConstants.ThumbnailRequestConcurrency, AmariBlmConstants.ThumbnailRequestConcurrency);
+        private readonly SemaphoreSlim _requestSemaphore = new SemaphoreSlim(BlmConstants.ThumbnailRequestConcurrency, BlmConstants.ThumbnailRequestConcurrency);
         private bool _settingsLoaded;
 
         public int MaxEntries { get; private set; }
         public string CacheRootPath { get; }
 
-        public AmariBlmThumbnailCacheService()
+        public BlmThumbnailCacheService()
         {
-            CacheRootPath = AmariBlmConstants.GetThumbnailCacheRootPath();
+            CacheRootPath = BlmConstants.GetThumbnailCacheRootPath();
             Directory.CreateDirectory(CacheRootPath);
-            MaxEntries = GetClampedMaxEntries(AmariBlmConstants.ThumbnailMemoryCacheMaxEntriesDefault);
+            MaxEntries = GetClampedMaxEntries(BlmConstants.ThumbnailMemoryCacheMaxEntriesDefault);
         }
 
         public void LoadSettingsFromEditorPrefs()
@@ -41,8 +41,8 @@ namespace com.amari_noa.blm_integration_core.editor
 
             MaxEntries = GetClampedMaxEntries(
                 EditorPrefs.GetInt(
-                    AmariBlmConstants.ThumbnailCacheEditorPrefsKey,
-                    AmariBlmConstants.ThumbnailMemoryCacheMaxEntriesDefault));
+                    BlmConstants.ThumbnailCacheEditorPrefsKey,
+                    BlmConstants.ThumbnailMemoryCacheMaxEntriesDefault));
             _settingsLoaded = true;
             TrimMemoryCacheIfNeeded();
         }
@@ -51,7 +51,7 @@ namespace com.amari_noa.blm_integration_core.editor
         {
             MaxEntries = GetClampedMaxEntries(maxEntries);
             _settingsLoaded = true;
-            EditorPrefs.SetInt(AmariBlmConstants.ThumbnailCacheEditorPrefsKey, MaxEntries);
+            EditorPrefs.SetInt(BlmConstants.ThumbnailCacheEditorPrefsKey, MaxEntries);
             TrimMemoryCacheIfNeeded();
             return MaxEntries;
         }
@@ -110,7 +110,7 @@ namespace com.amari_noa.blm_integration_core.editor
             }
         }
 
-        public async Task<Texture2D> GetTextureAsync(AmariBlmItemRecord itemRecord)
+        public async Task<Texture2D> GetTextureAsync(BlmItemRecord itemRecord)
         {
             if (itemRecord == null)
             {
@@ -223,7 +223,7 @@ namespace com.amari_noa.blm_integration_core.editor
                 DeleteHashVariants(hash);
 
                 using var request = UnityWebRequest.Get(thumbnailUrl);
-                request.timeout = AmariBlmConstants.ThumbnailRequestTimeoutSeconds;
+                request.timeout = BlmConstants.ThumbnailRequestTimeoutSeconds;
 
                 await SendRequestAsync(request);
                 if (request.result is UnityWebRequest.Result.ConnectionError or UnityWebRequest.Result.ProtocolError)
@@ -446,7 +446,7 @@ namespace com.amari_noa.blm_integration_core.editor
             try
             {
                 var lastWriteUtc = File.GetLastWriteTimeUtc(filePath);
-                return DateTime.UtcNow - lastWriteUtc > TimeSpan.FromDays(AmariBlmConstants.ThumbnailDiskCacheTtlDays);
+                return DateTime.UtcNow - lastWriteUtc > TimeSpan.FromDays(BlmConstants.ThumbnailDiskCacheTtlDays);
             }
             catch
             {
@@ -475,8 +475,8 @@ namespace com.amari_noa.blm_integration_core.editor
         {
             return Mathf.Clamp(
                 requested,
-                AmariBlmConstants.ThumbnailMemoryCacheMaxEntriesMin,
-                AmariBlmConstants.ThumbnailMemoryCacheMaxEntriesMax);
+                BlmConstants.ThumbnailMemoryCacheMaxEntriesMin,
+                BlmConstants.ThumbnailMemoryCacheMaxEntriesMax);
         }
 
         private void AddTextureToCache(string key, Texture2D texture)
@@ -535,12 +535,12 @@ namespace com.amari_noa.blm_integration_core.editor
 
         private static void PerfLog(string message)
         {
-            if (!AmariBlmConstants.EnablePerformanceLogging)
+            if (!BlmConstants.EnablePerformanceLogging)
             {
                 return;
             }
 
-            Debug.Log($"{AmariBlmConstants.PerformanceLogPrefix}[Thumbnail] {message}");
+            Debug.Log($"{BlmConstants.PerformanceLogPrefix}[Thumbnail] {message}");
         }
     }
 }

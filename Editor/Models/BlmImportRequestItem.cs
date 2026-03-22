@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace com.amari_noa.blm_integration_core.editor
 {
-    public sealed class AmariBlmImportRequestItem
+    public sealed class BlmImportRequestItem
     {
         public string ProductId = string.Empty;
         public string ProductName = string.Empty;

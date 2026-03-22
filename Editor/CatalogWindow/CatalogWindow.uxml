@@ -1,7 +1,7 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
     <Style src="project://database/Packages/com.amari-noa.blm-integration-core/Editor/CatalogWindow/CatalogWindow.uss?fileID=7433441132597879392&amp;guid=8e2c2371a5ec80f489e384dae3303c0c&amp;type=3#CatalogWindow" />
     <ui:VisualElement style="flex-grow: 1; flex-direction: row; align-items: stretch;">
-        <ui:VisualElement name="LeftPanel" style="flex-grow: 1; max-width: 22%; min-width: 22%; margin-top: 8px; margin-right: 8px; margin-bottom: 8px; margin-left: 8px;">
+        <ui:VisualElement name="LeftPanel" style="flex-grow: 1; max-width: 250px; min-width: 250px; padding-top: 8px; padding-right: 8px; padding-bottom: 8px; padding-left: 8px;">
             <ui:VisualElement style="flex-grow: 1; max-height: 96px; min-height: 96px;">
                 <ui:DropdownField name="DisplayModeField" />
                 <ui:DropdownField name="ListSelectorField" />
@@ -47,7 +47,7 @@
                 <ui:Button text="ReloadDB" parse-escape-sequences="true" display-tooltip-when-elided="true" name="RefreshDbButton" />
             </ui:VisualElement>
         </ui:VisualElement>
-        <ui:VisualElement name="MainPanel" style="flex-grow: 1; margin-right: 8px; margin-left: 8px; margin-top: 8px; margin-bottom: 8px;">
+        <ui:VisualElement name="MainPanel" style="flex-grow: 1; padding-top: 8px; padding-right: 8px; padding-bottom: 8px; padding-left: 8px;">
             <ui:VisualElement name="CatalogHeader" style="flex-grow: 1; max-height: 80px; min-height: 80px;">
                 <ui:VisualElement style="flex-grow: 1; max-height: 46px; min-height: 46px; justify-content: center;">
                     <ui:TextField picking-mode="Ignore" label="Search" value="filler text" name="SearchTextField" />
@@ -68,35 +68,47 @@
                 <ui:Button text="&gt;" parse-escape-sequences="true" display-tooltip-when-elided="true" name="NextPageButton" />
             </ui:VisualElement>
         </ui:VisualElement>
-        <ui:VisualElement name="RightPanel" style="flex-grow: 1; max-width: 30%; min-width: 30%; margin-top: 8px; margin-right: 8px; margin-bottom: 8px; margin-left: 8px;">
-            <ui:VisualElement style="flex-grow: 1; max-height: 58%; min-height: 58%;">
-                <ui:VisualElement style="flex-grow: 1; max-height: 26px; min-height: 26px;">
-                    <ui:Label tabindex="-1" text="Product name" parse-escape-sequences="true" display-tooltip-when-elided="true" name="DetailProductNameLabel" style="-unity-text-align: middle-left;" />
-                </ui:VisualElement>
-                <ui:VisualElement name="DetailThumbnailImage" style="flex-grow: 1; margin-top: 4px; margin-right: 4px; margin-bottom: 4px; margin-left: 4px;" />
-                <ui:VisualElement style="flex-grow: 1;">
-                    <ui:Label tabindex="-1" text="Product file(s)" parse-escape-sequences="true" display-tooltip-when-elided="true" name="DetailProductListLabel" style="-unity-text-align: middle-left;" />
-                    <ui:ListView name="DetailFileListView" style="flex-grow: 1;" />
-                    <ui:VisualElement style="flex-grow: 1; max-height: 50px; min-height: 50px; flex-direction: row;">
-                        <ui:VisualElement style="flex-grow: 1;">
-                            <ui:Button text="DeSelect all file(s)" parse-escape-sequences="true" display-tooltip-when-elided="true" name="DeSelectAllFilesButton" />
+        <ui:VisualElement name="RightPanel" style="flex-grow: 1; max-width: 30%; min-width: 30%; padding-top: 8px; padding-right: 8px; padding-bottom: 8px; padding-left: 8px;">
+            <ui:VisualElement style="flex-grow: 1; flex-direction: row; min-height: 0;">
+                <ui:VisualElement style="flex-grow: 1; min-height: 0; max-width: 50%; min-width: 50%; padding-top: 5px; padding-right: 5px; padding-bottom: 5px; padding-left: 5px;">
+                    <ui:VisualElement style="flex-grow: 0; flex-shrink: 0; height: 56px; max-height: 56px; min-height: 56px; overflow: hidden;">
+                        <ui:Label tabindex="-1" text="Product name" parse-escape-sequences="true" display-tooltip-when-elided="true" name="DetailProductNameLabel" style="height: 56px; max-height: 56px; min-height: 56px; white-space: normal; overflow: hidden; text-overflow: clip; -unity-text-align: upper-left;" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="DetailThumbnailImage" style="flex-grow: 0; flex-shrink: 0; min-height: 120px; margin-top: 4px; margin-right: 4px; margin-bottom: 4px; margin-left: 4px;" />
+                    <ui:VisualElement style="flex-grow: 1; max-height: 10px; min-height: 10px;" />
+                    <ui:VisualElement style="flex-grow: 1; flex-shrink: 1; min-height: 0;">
+                        <ui:Label tabindex="-1" text="Product file(s)" parse-escape-sequences="true" display-tooltip-when-elided="true" name="DetailProductListLabel" style="-unity-text-align: middle-left;" />
+                        <ui:ListView name="DetailFileListView" style="flex-grow: 1; flex-shrink: 1; min-height: 0;" />
+                        <ui:VisualElement style="flex-grow: 0; flex-shrink: 0; max-height: 50px; min-height: 50px; flex-direction: row;">
+                            <ui:VisualElement style="flex-grow: 1;">
+                                <ui:Button text="DeSelect all file(s)" parse-escape-sequences="true" display-tooltip-when-elided="true" name="DeSelectAllFilesButton" />
+                            </ui:VisualElement>
+                            <ui:VisualElement style="flex-grow: 1;">
+                                <ui:Button text="Select all file(s)" parse-escape-sequences="true" display-tooltip-when-elided="true" name="SelectAllFilesButton" />
+                            </ui:VisualElement>
                         </ui:VisualElement>
-                        <ui:VisualElement style="flex-grow: 1;">
-                            <ui:Button text="Select all file(s)" parse-escape-sequences="true" display-tooltip-when-elided="true" name="SelectAllFilesButton" />
+                    </ui:VisualElement>
+                    <ui:VisualElement style="flex-grow: 0; flex-shrink: 0; flex-direction: column-reverse; max-height: 26px; min-height: 26px;">
+                        <ui:Label tabindex="-1" text="Folder path" parse-escape-sequences="true" display-tooltip-when-elided="true" name="DetailFolderPathLabel" style="-unity-text-align: middle-left;" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement style="flex-grow: 1; min-height: 0; max-width: 50%; min-width: 50%; padding-top: 5px; padding-right: 5px; padding-bottom: 5px; padding-left: 5px;">
+                    <ui:VisualElement style="flex-grow: 1; min-height: 0;">
+                        <ui:Label tabindex="-1" text="Selected Items" parse-escape-sequences="true" display-tooltip-when-elided="true" name="SelectedItemsTitleLabel" />
+                        <ui:DropdownField name="SelectedItemsFilterDropdown" />
+                        <ui:VisualElement style="flex-grow: 1; min-height: 0;">
+                            <ui:ScrollView name="SelectedProductsScrollView" style="flex-grow: 1;" />
+                            <ui:Button text="DeSelect all file(s)" parse-escape-sequences="true" display-tooltip-when-elided="true" name="DeSelectAllProductsFilesButton" />
+                        </ui:VisualElement>
+                        <ui:VisualElement style="flex-grow: 1; max-height: 10px; min-height: 10px;" />
+                        <ui:VisualElement style="flex-grow: 1; max-height: 25%; min-height: 25%;">
+                            <ui:Label tabindex="-1" text="ImportQueue" parse-escape-sequences="true" display-tooltip-when-elided="true" name="ImportQueueTitleLabel" />
+                            <ui:ListView name="ImportQueueListView" style="flex-grow: 1;" />
                         </ui:VisualElement>
                     </ui:VisualElement>
                 </ui:VisualElement>
-                <ui:VisualElement style="flex-grow: 1; flex-direction: column-reverse; max-height: 26px; min-height: 26px;">
-                    <ui:Label tabindex="-1" text="Folder path" parse-escape-sequences="true" display-tooltip-when-elided="true" name="DetailFolderPathLabel" style="-unity-text-align: middle-left;" />
-                </ui:VisualElement>
             </ui:VisualElement>
-            <ui:VisualElement style="flex-grow: 1; max-height: 8px; min-height: 8px;" />
-            <ui:VisualElement style="flex-grow: 1;">
-                <ui:Label tabindex="-1" text="Selected Items" parse-escape-sequences="true" display-tooltip-when-elided="true" name="SelectedItemsTitleLabel" />
-                <ui:VisualElement style="flex-grow: 1;">
-                    <ui:ScrollView name="SelectedProductsScrollView" />
-                </ui:VisualElement>
-            </ui:VisualElement>
+            <ui:VisualElement style="flex-grow: 1; min-height: 20px; max-height: 20px;" />
             <ui:VisualElement style="flex-grow: 1; flex-direction: row; align-self: center; max-height: 58px; min-height: 58px; margin-bottom: 8px;">
                 <ui:VisualElement style="flex-grow: 1; justify-content: space-around;">
                     <ui:Button text="Cancel" parse-escape-sequences="true" display-tooltip-when-elided="true" name="CancelButton" style="max-height: 52px; min-height: 52px;" />

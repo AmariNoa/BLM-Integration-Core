@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace com.amari_noa.blm_integration_core.editor
 {
-    public sealed class AmariBlmItemRecord
+    public sealed class BlmItemRecord
     {
         public string ProductId = string.Empty;
         public string ProductName = string.Empty;
@@ -16,8 +16,8 @@ namespace com.amari_noa.blm_integration_core.editor
         public DateTime? PublishedAt;
         public string Category = string.Empty;
         public string SubCategory = string.Empty;
-        public AmariBlmAgeRestriction AgeRestriction = AmariBlmAgeRestriction.Unknown;
+        public BlmAgeRestriction AgeRestriction = BlmAgeRestriction.Unknown;
         public List<string> Tags = new List<string>();
-        public List<AmariBlmFileRecord> Files = new List<AmariBlmFileRecord>();
+        public List<BlmFileRecord> Files = new List<BlmFileRecord>();
     }
 }

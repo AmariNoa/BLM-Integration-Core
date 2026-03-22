@@ -7,13 +7,13 @@ using UnityEngine;
 
 namespace com.amari_noa.blm_integration_core.editor
 {
-    internal sealed class AmariBlmNonUnityPackageImporter
+    internal sealed class BlmNonUnityPackageImporter
     {
         private DuplicateMode _duplicateMode = DuplicateMode.Undecided;
 
         public NonUnityImportResult Import(
-            AmariBlmImportRequestItem item,
-            AmariBlmPickerContext context,
+            BlmImportRequestItem item,
+            BlmPickerContext context,
             ISet<string> batchDestinationPaths)
         {
             if (item == null || string.IsNullOrWhiteSpace(item.SourcePath))
@@ -57,7 +57,7 @@ namespace com.amari_noa.blm_integration_core.editor
             }
         }
 
-        private DuplicateAction DecideDuplicateAction(AmariBlmPickerContext context, string destinationAssetPath)
+        private DuplicateAction DecideDuplicateAction(BlmPickerContext context, string destinationAssetPath)
         {
             if (_duplicateMode == DuplicateMode.SkipAll)
             {
@@ -106,7 +106,7 @@ namespace com.amari_noa.blm_integration_core.editor
             return DuplicateAction.Overwrite;
         }
 
-        private static string BuildDestinationAssetPath(AmariBlmImportRequestItem item)
+        private static string BuildDestinationAssetPath(BlmImportRequestItem item)
         {
             var shop = SanitizePathSegment(item.ShopName);
             var product = SanitizePathSegment(item.ProductName);
@@ -196,7 +196,7 @@ namespace com.amari_noa.blm_integration_core.editor
             return new string(chars);
         }
 
-        private static string L(AmariBlmPickerContext context, string key, string fallback)
+        private static string L(BlmPickerContext context, string key, string fallback)
         {
             if (context?.EditorLocalizationService == null)
             {
@@ -204,7 +204,7 @@ namespace com.amari_noa.blm_integration_core.editor
             }
 
             var sourceId = string.IsNullOrWhiteSpace(context.LocalizationSourceId)
-                ? AmariBlmConstants.LocalizationSourceId
+                ? BlmConstants.LocalizationSourceId
                 : context.LocalizationSourceId;
             return context.EditorLocalizationService.Get(sourceId, key, fallback);
         }

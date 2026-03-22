@@ -1,6 +1,6 @@
 namespace com.amari_noa.blm_integration_core.editor
 {
-    public enum AmariBlmInvocationContext
+    public enum BlmInvocationContext
     {
         Integration,
         Standalone

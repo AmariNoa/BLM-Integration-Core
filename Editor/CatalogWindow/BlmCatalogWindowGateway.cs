@@ -2,18 +2,18 @@ using System;
 
 namespace com.amari_noa.blm_integration_core.editor
 {
-    public sealed class AmariBlmCatalogWindowGateway : IAmariBlmCatalogWindowGateway
+    public sealed class BlmCatalogWindowGateway : IBlmCatalogWindowGateway
     {
-        public static AmariBlmCatalogWindowGateway Shared { get; } = new AmariBlmCatalogWindowGateway();
+        public static BlmCatalogWindowGateway Shared { get; } = new BlmCatalogWindowGateway();
 
-        public event Action<AmariBlmImportBatchRequest> BatchRequestConfirmed;
+        public event Action<BlmImportBatchRequest> BatchRequestConfirmed;
 
-        public void Open(AmariBlmPickerContext context)
+        public void Open(BlmPickerContext context)
         {
             CatalogWindow.Open(context, HandleBatchRequestConfirmed);
         }
 
-        private void HandleBatchRequestConfirmed(AmariBlmImportBatchRequest request)
+        private void HandleBatchRequestConfirmed(BlmImportBatchRequest request)
         {
             BatchRequestConfirmed?.Invoke(request);
         }

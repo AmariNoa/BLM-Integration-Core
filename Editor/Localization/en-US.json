@@ -2,11 +2,11 @@
   "languageDisplayName": "English",
   "blm": {
     "window": {
-      "title": "BLM Window"
+      "title": "BLM Integration Core"
     },
     "display_mode": {
       "all": "All Purchased",
-      "by_list": "BLM List"
+      "by_list": "List"
     },
     "list": {
       "empty": "No list is available."
@@ -50,10 +50,22 @@
       "product_name": "Product name",
       "product_files": "Product file(s)",
       "folder_path": "Folder path",
+      "other_files": "other files",
       "deselect_all_files": "DeSelect all file(s)",
       "select_all_files": "Select all file(s)"
     },
-    "selected_items": "Selected Items",
+    "selected_items": {
+      "title": "Selected Items",
+      "deselect_all_products_files": "DeSelect all selected file(s)",
+      "filter": {
+        "selected_and_preferred": "Selected + Preferred",
+        "selected_only": "Selected Only",
+        "all": "All"
+      }
+    },
+    "import_queue": {
+      "title": "Import Queue"
+    },
     "button": {
       "cancel": "Cancel",
       "import": "Import"

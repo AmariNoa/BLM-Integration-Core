@@ -3,7 +3,7 @@ using System.IO;
 
 namespace com.amari_noa.blm_integration_core.editor
 {
-    internal static class AmariBlmConstants
+    internal static class BlmConstants
     {
         internal const string LocalizationSourceId = "com.amari-noa.blm-integration-core";
         internal const string LocalizationDisplayName = "BLM Integration Core";

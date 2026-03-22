@@ -5,22 +5,22 @@ using UnityEditor;
 
 namespace com.amari_noa.blm_integration_core.editor
 {
-    internal static class AmariBlmMenu
+    internal static class BlmMenu
     {
         [MenuItem("Tools/BLM Integration Core/BLM Window")]
         private static void OpenStandaloneWindow()
         {
-            var context = new AmariBlmPickerContext
+            var context = new BlmPickerContext
             {
-                InvocationContext = AmariBlmInvocationContext.Standalone,
-                PreferredDisplayExtensions = new List<string>(AmariBlmConstants.StandalonePreferredDisplayExtensions),
+                InvocationContext = BlmInvocationContext.Standalone,
+                PreferredDisplayExtensions = new List<string>(BlmConstants.StandalonePreferredDisplayExtensions),
                 UnityPackageImportPipelineService = AmariUnityPackageImportPipeline.Service,
-                DestinationAssetPathUpdater = AmariBlmImportProcessor.Shared,
+                DestinationAssetPathUpdater = BlmImportProcessor.Shared,
                 EditorLocalizationService = EditorLocalization.Service,
-                LocalizationSourceId = AmariBlmConstants.LocalizationSourceId
+                LocalizationSourceId = BlmConstants.LocalizationSourceId
             };
 
-            AmariBlmCatalogWindowGateway.Shared.Open(context);
+            BlmCatalogWindowGateway.Shared.Open(context);
         }
 
         [MenuItem("Tools/BLM Integration Core/Clear thumbnail cache")]
@@ -35,7 +35,7 @@ namespace com.amari_noa.blm_integration_core.editor
                 return;
             }
 
-            var service = new AmariBlmThumbnailCacheService();
+            var service = new BlmThumbnailCacheService();
             service.ClearAllCacheFiles();
 
             EditorUtility.DisplayDialog(
@@ -46,7 +46,7 @@ namespace com.amari_noa.blm_integration_core.editor
 
         private static string L(string key, string fallback)
         {
-            return EditorLocalization.Service.Get(AmariBlmConstants.LocalizationSourceId, key, fallback);
+            return EditorLocalization.Service.Get(BlmConstants.LocalizationSourceId, key, fallback);
         }
     }
 }

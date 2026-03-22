@@ -5,11 +5,11 @@ using UnityEngine;
 namespace com.amari_noa.blm_integration_core.editor
 {
     [InitializeOnLoad]
-    internal static class AmariBlmIntegrationCoreLocalizationSourceRegistration
+    internal static class BlmIntegrationCoreLocalizationSourceRegistration
     {
-        static AmariBlmIntegrationCoreLocalizationSourceRegistration()
+        static BlmIntegrationCoreLocalizationSourceRegistration()
         {
-            var localizationFolderGuid = AssetDatabase.AssetPathToGUID(AmariBlmConstants.LocalizationFolderAssetPath);
+            var localizationFolderGuid = AssetDatabase.AssetPathToGUID(BlmConstants.LocalizationFolderAssetPath);
             if (string.IsNullOrWhiteSpace(localizationFolderGuid))
             {
                 Debug.LogWarning("[BLM Integration Core] Localization folder guid could not be resolved.");
@@ -18,11 +18,11 @@ namespace com.amari_noa.blm_integration_core.editor
 
             EditorLocalization.Service.RegisterSource(new EditorLocalizationSourceDefinition
             {
-                SourceId = AmariBlmConstants.LocalizationSourceId,
-                DisplayName = AmariBlmConstants.LocalizationDisplayName,
+                SourceId = BlmConstants.LocalizationSourceId,
+                DisplayName = BlmConstants.LocalizationDisplayName,
                 LocalizationFolderGuid = localizationFolderGuid,
-                DefaultLanguageCode = AmariBlmConstants.LocalizationDefaultLanguageCode,
-                BaseLanguageCode = AmariBlmConstants.LocalizationDefaultLanguageCode
+                DefaultLanguageCode = BlmConstants.LocalizationDefaultLanguageCode,
+                BaseLanguageCode = BlmConstants.LocalizationDefaultLanguageCode
             });
         }
     }

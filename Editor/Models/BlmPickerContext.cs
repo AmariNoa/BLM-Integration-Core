@@ -4,14 +4,14 @@ using com.amari_noa.unitypackage_pipeline_core.editor;
 
 namespace com.amari_noa.blm_integration_core.editor
 {
-    public sealed class AmariBlmPickerContext
+    public sealed class BlmPickerContext
     {
-        public AmariBlmInvocationContext InvocationContext = AmariBlmInvocationContext.Integration;
+        public BlmInvocationContext InvocationContext = BlmInvocationContext.Integration;
         public List<string> PreferredDisplayExtensions = new List<string>();
         public IAmariUnityPackageImportPipelineService UnityPackageImportPipelineService;
-        public IAmariBlmDestinationAssetPathUpdater DestinationAssetPathUpdater;
+        public IBlmDestinationAssetPathUpdater DestinationAssetPathUpdater;
         public IEditorLocalizationService EditorLocalizationService;
-        public string LocalizationSourceId = AmariBlmConstants.LocalizationSourceId;
+        public string LocalizationSourceId = BlmConstants.LocalizationSourceId;
         public object HostContext;
 
         public bool ValidateRequiredServices(out string errorMessage)
