@@ -63,6 +63,7 @@ namespace com.amari_noa.blm_integration_core.editor
         private ScrollView _selectedProductsScrollView;
         private IntegerField _thumbnailCacheMaxEntriesField;
         private Button _confirmButton;
+        private Button _openFolderPathButton;
         private Label _detailProductNameLabel;
         private Label _detailProductListLabel;
         private Label _detailFolderPathLabel;
@@ -306,6 +307,7 @@ namespace com.amari_noa.blm_integration_core.editor
             _selectedProductsScrollView = rootVisualElement.Q<ScrollView>("SelectedProductsScrollView");
             _thumbnailCacheMaxEntriesField = rootVisualElement.Q<IntegerField>("ThumbnailCacheMaxEntriesField");
             _confirmButton = rootVisualElement.Q<Button>("ConfirmSelectionButton");
+            _openFolderPathButton = rootVisualElement.Q<Button>("OpenFolderPathButton");
             _detailProductNameLabel = rootVisualElement.Q<Label>("DetailProductNameLabel");
             _detailProductListLabel = rootVisualElement.Q<Label>("DetailProductListLabel");
             _detailFolderPathLabel = rootVisualElement.Q<Label>("DetailFolderPathLabel");
@@ -353,6 +355,7 @@ namespace com.amari_noa.blm_integration_core.editor
             _tagSearchField.value = string.Empty;
             _tagSearchField.pickingMode = PickingMode.Position;
             _loadingOverlay.style.display = DisplayStyle.None;
+            _openFolderPathButton?.SetEnabled(false);
             if (_selectedProductsScrollView != null)
             {
                 _selectedProductsScrollView.mode = ScrollViewMode.Vertical;
@@ -712,6 +715,11 @@ namespace com.amari_noa.blm_integration_core.editor
             if (deSelectAllProductsFilesButton != null)
             {
                 deSelectAllProductsFilesButton.clicked += ClearAllSelectedFiles;
+            }
+
+            if (_openFolderPathButton != null)
+            {
+                _openFolderPathButton.clicked += OnOpenFolderPathClicked;
             }
 
             rootVisualElement.Q<Button>("SelectAllFilesButton").clicked += () => SetAllFilesSelection(true);
@@ -1474,6 +1482,7 @@ namespace com.amari_noa.blm_integration_core.editor
             {
                 _detailProductNameLabel.text = L("blm.detail.product_name", "Product name");
                 _detailFolderPathLabel.text = L("blm.detail.folder_path", "Folder path");
+                _openFolderPathButton?.SetEnabled(false);
                 _detailFiles = new List<BlmFileRecord>();
                 _detailFileListEntries = new List<DetailFileListEntry>();
                 _detailFileListView.itemsSource = _detailFileListEntries;
@@ -1485,6 +1494,7 @@ namespace com.amari_noa.blm_integration_core.editor
             EnsureItemFilesLoaded(item);
             _detailProductNameLabel.text = item.ProductName;
             _detailFolderPathLabel.text = item.RootFolderPath;
+            _openFolderPathButton?.SetEnabled(!string.IsNullOrWhiteSpace(item.RootFolderPath) && Directory.Exists(item.RootFolderPath));
             _detailFiles = item.Files.OrderBy(f => ExtensionPriority(f.FileExtension)).ThenBy(f => f.FileName, StringComparer.OrdinalIgnoreCase).ToList();
             _detailFileListEntries = BuildDetailFileListEntries(_detailFiles);
             _detailFileListView.itemsSource = _detailFileListEntries;
@@ -1866,6 +1876,7 @@ namespace com.amari_noa.blm_integration_core.editor
                         ShopName = item.ShopName,
                         SourcePath = file.FullPath,
                         RootFolderPath = item.RootFolderPath,
+                        NormalizedRelativePath = BuildNormalizedRelativePath(item.RootFolderPath, file.FullPath),
                         DestinationAssetPaths = new List<string>(),
                         Tags = BuildTags(item.ProductId)
                     });
@@ -1873,6 +1884,91 @@ namespace com.amari_noa.blm_integration_core.editor
             }
 
             return batch;
+        }
+
+        private static string BuildNormalizedRelativePath(string rootFolderPath, string sourcePath)
+        {
+            if (string.IsNullOrWhiteSpace(sourcePath))
+            {
+                return string.Empty;
+            }
+
+            if (string.IsNullOrWhiteSpace(rootFolderPath))
+            {
+                return Path.GetFileName(sourcePath) ?? sourcePath;
+            }
+
+            try
+            {
+                var relative = Path.GetRelativePath(rootFolderPath, sourcePath);
+                if (!string.IsNullOrWhiteSpace(relative) && !relative.StartsWith("..", StringComparison.Ordinal))
+                {
+                    return CollapseRedundantTopLevelDirectory(rootFolderPath, relative)
+                        .Replace('\\', '/');
+                }
+            }
+            catch
+            {
+                // Use fallback below.
+            }
+
+            return Path.GetFileName(sourcePath) ?? sourcePath;
+        }
+
+        private static string CollapseRedundantTopLevelDirectory(string rootFolderPath, string relativePath)
+        {
+            if (string.IsNullOrWhiteSpace(rootFolderPath) || string.IsNullOrWhiteSpace(relativePath))
+            {
+                return relativePath;
+            }
+
+            var segments = relativePath
+                .Replace('\\', '/')
+                .Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+            if (segments.Length < 3)
+            {
+                return relativePath;
+            }
+
+            var topLevel = segments[0];
+            var secondLevel = segments[1];
+            if (!string.Equals(topLevel, secondLevel, StringComparison.OrdinalIgnoreCase))
+            {
+                return relativePath;
+            }
+
+            var topLevelDirectoryPath = Path.Combine(rootFolderPath, topLevel);
+            if (!Directory.Exists(topLevelDirectoryPath))
+            {
+                return relativePath;
+            }
+
+            string[] childDirectories;
+            try
+            {
+                childDirectories = Directory.GetDirectories(topLevelDirectoryPath);
+            }
+            catch
+            {
+                return relativePath;
+            }
+
+            if (childDirectories.Length != 1)
+            {
+                return relativePath;
+            }
+
+            var onlyChildDirectoryName = Path.GetFileName(
+                childDirectories[0].TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            if (!string.Equals(onlyChildDirectoryName, topLevel, StringComparison.OrdinalIgnoreCase))
+            {
+                return relativePath;
+            }
+
+            var collapsedSegments = new string[segments.Length - 1];
+            collapsedSegments[0] = topLevel;
+            Array.Copy(segments, 2, collapsedSegments, 1, segments.Length - 2);
+            return string.Join("/", collapsedSegments);
         }
 
         private static List<string> BuildTags(string productId)
@@ -1991,6 +2087,23 @@ namespace com.amari_noa.blm_integration_core.editor
             if (_page >= TotalPages()) return;
             _page++;
             RebuildGrid();
+        }
+
+        private void OnOpenFolderPathClicked()
+        {
+            if (_detailItem == null)
+            {
+                return;
+            }
+
+            var folderPath = _detailFolderPathLabel?.text;
+            if (string.IsNullOrWhiteSpace(folderPath) || !Directory.Exists(folderPath))
+            {
+                Debug.LogWarning($"[BLM Integration Core] Detail folder path is invalid: {folderPath}");
+                return;
+            }
+
+            EditorUtility.RevealInFinder(folderPath);
         }
 
         private int TotalPages()
@@ -2249,6 +2362,11 @@ namespace com.amari_noa.blm_integration_core.editor
             }
 
             rootVisualElement.Q<Button>("SelectAllFilesButton").text = L("blm.detail.select_all_files", "Select all file(s)");
+            if (_openFolderPathButton != null)
+            {
+                _openFolderPathButton.text = L("blm.detail.open_folder_path", "Open folder path");
+            }
+
             rootVisualElement.Q<Button>("CancelButton").text = L("blm.button.cancel", "Cancel");
             _confirmButton.text = L("blm.button.import", "Import");
             _detailProductListLabel.text = L("blm.detail.product_files", "Product file(s)");
