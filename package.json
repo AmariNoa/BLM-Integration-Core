@@ -1,7 +1,7 @@
 {
   "name": "com.amari-noa.blm-integration-core",
   "displayName": "BLM Integration Core",
-  "version": "0.1.0-alpha.0",
+  "version": "0.1.0",
   "unity": "2022.3",
   "description": "Unofficial Unity package for reading and integrating local data used by BOOTH Library Manager.",
   "author": {
@@ -9,9 +9,9 @@
     "url": "https://amari-noa.com/"
   },
   "dependencies": {
-    "com.amari-noa.sqlite-net-vpm": "0.0.0",
-    "com.amari-noa.unitypackage-pipeline-core": "0.0.0",
-    "com.amari-noa.unity-editor-localization-core": "0.0.0"
+    "com.amari-noa.sqlite-net-vpm": "1.0.0",
+    "com.amari-noa.unitypackage-pipeline-core": "1.0.0",
+    "com.amari-noa.unity-editor-localization-core": "1.0.0"
   },
   "url": "https://amarinoa.github.io/AmariNoa-VPM-Listing/",
   "repo": "https://amarinoa.github.io/AmariNoa-VPM-Listing/index.json"
