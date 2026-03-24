@@ -54,6 +54,9 @@
     "detail": {
       "product_name": "商品名",
       "product_files": "商品ファイル",
+      "imported_state": {
+        "has_imported_files": "インポート済みファイルあり"
+      },
       "folder_path": "フォルダーパス",
       "open_folder_path": "フォルダーを開く",
       "other_files": "その他ファイル",

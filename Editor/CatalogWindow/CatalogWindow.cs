@@ -17,9 +17,9 @@ namespace com.amari_noa.blm_integration_core.editor
     {
         [SerializeField] private VisualTreeAsset visualTreeAsset;
         private const string NotSetToken = "__NOT_SET__";
-        private static readonly Vector2 InitialWindowSize = new Vector2(1320f, 840f);
+        private static readonly Vector2 InitialWindowSize = new Vector2(1320f, 850f);
         private static readonly Vector2 InitialWindowPosition = new Vector2(80f, 80f);
-        private static readonly Vector2 MinimumWindowSize = new Vector2(960f, 850f);
+        private static readonly Vector2 MinimumWindowSize = new Vector2(1320f, 800f);
         private static readonly Vector2 MaximumWindowSize = new Vector2(10000f, 10000f);
         private static FontAsset _catalogWindowFontAsset;
 
@@ -68,6 +68,7 @@ namespace com.amari_noa.blm_integration_core.editor
         private Button _openFolderPathButton;
         private Label _detailProductNameLabel;
         private Label _detailProductListLabel;
+        private Label _importedStateLabel;
         private Label _detailFolderPathLabel;
         private Label _importQueueTitleLabel;
         private Label _activeFilterCountLabel;
@@ -333,6 +334,7 @@ namespace com.amari_noa.blm_integration_core.editor
             _openFolderPathButton = rootVisualElement.Q<Button>("OpenFolderPathButton");
             _detailProductNameLabel = rootVisualElement.Q<Label>("DetailProductNameLabel");
             _detailProductListLabel = rootVisualElement.Q<Label>("DetailProductListLabel");
+            _importedStateLabel = rootVisualElement.Q<Label>("ImportedStateLabel");
             _detailFolderPathLabel = rootVisualElement.Q<Label>("DetailFolderPathLabel");
             _importQueueTitleLabel = rootVisualElement.Q<Label>("ImportQueueTitleLabel");
             _activeFilterCountLabel = rootVisualElement.Q<Label>("ActiveFilterCountLabel");
@@ -1709,6 +1711,7 @@ namespace com.amari_noa.blm_integration_core.editor
             {
                 _detailProductNameLabel.text = L("blm.detail.product_name", "Product name");
                 _detailFolderPathLabel.text = L("blm.detail.folder_path", "Folder path");
+                UpdateImportedStateLabel(null);
                 _openFolderPathButton?.SetEnabled(false);
                 _detailFiles = new List<BlmFileRecord>();
                 _detailDuplicateFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -1722,6 +1725,7 @@ namespace com.amari_noa.blm_integration_core.editor
             EnsureItemFilesLoaded(item);
             _detailProductNameLabel.text = item.ProductName;
             _detailFolderPathLabel.text = item.RootFolderPath;
+            UpdateImportedStateLabel(item);
             _openFolderPathButton?.SetEnabled(!string.IsNullOrWhiteSpace(item.RootFolderPath) && Directory.Exists(item.RootFolderPath));
             _detailFiles = item.Files.OrderBy(f => ExtensionPriority(f.FileExtension)).ThenBy(f => f.FileName, StringComparer.OrdinalIgnoreCase).ToList();
             _detailDuplicateFileNames = BuildDuplicateFileNameSet(_detailFiles);
@@ -2138,6 +2142,8 @@ namespace com.amari_noa.blm_integration_core.editor
             {
                 RefreshImportQueueFromSelection();
             }
+
+            UpdateImportedStateLabel(_detailItem);
 
             if (result.ImportStatus == AmariUnityPackagePipelineOperationStatus.Completed)
             {
@@ -2668,6 +2674,39 @@ namespace com.amari_noa.blm_integration_core.editor
                    set.Contains(path);
         }
 
+        private void UpdateImportedStateLabel(BlmItemRecord item)
+        {
+            if (_importedStateLabel == null)
+            {
+                return;
+            }
+
+            var hasImportedFiles = HasImportedFilesForProduct(item?.ProductId);
+            _importedStateLabel.text = L("blm.detail.imported_state.has_imported_files", "Imported files found");
+            _importedStateLabel.style.display = DisplayStyle.Flex;
+            _importedStateLabel.style.visibility = hasImportedFiles ? Visibility.Visible : Visibility.Hidden;
+        }
+
+        private static bool HasImportedFilesForProduct(string productId)
+        {
+            var normalizedProductId = productId?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(normalizedProductId))
+            {
+                return false;
+            }
+
+            var productTag = $"AMARI_BLM_P{normalizedProductId}";
+            try
+            {
+                return AssetDatabase.FindAssets($"l:{productTag}").Length > 0;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[BLM Integration Core] Failed to resolve imported state by label: tag={productTag}, error={ex.Message}");
+                return false;
+            }
+        }
+
         private void ApplyLocalization()
         {
             titleContent = new GUIContent(L("blm.window.title", BlmConstants.WindowTitle));
@@ -2776,6 +2815,7 @@ namespace com.amari_noa.blm_integration_core.editor
             _detailProductListLabel.text = L("blm.detail.product_files", "Product file(s)");
             rootVisualElement.Q<Label>("LoadingLabel").text = L("blm.loading", "Loading...");
             _listModeEmptyStateLabel.text = L("blm.list.empty", "No list is available.");
+            UpdateImportedStateLabel(_detailItem);
 
             if (!_languageSubscribed)
             {

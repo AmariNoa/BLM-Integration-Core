@@ -54,6 +54,9 @@
     "detail": {
       "product_name": "Product name",
       "product_files": "Product file(s)",
+      "imported_state": {
+        "has_imported_files": "Imported files found"
+      },
       "folder_path": "Folder path",
       "open_folder_path": "Open folder path",
       "other_files": "other files",
