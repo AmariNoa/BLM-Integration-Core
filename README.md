@@ -1,3 +1,9 @@
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/AmariNoa/BLM-Integration-Core?label=release)
+![GitHub release (by tag)](https://img.shields.io/github/downloads/AmariNoa/BLM-Integration-Core/latest/total)
+![GitHub all releases](https://img.shields.io/github/downloads/AmariNoa/BLM-Integration-Core/total?label=total%20downloads)
+![GitHub issues](https://img.shields.io/github/issues/AmariNoa/BLM-Integration-Core)
+![GitHub stars](https://img.shields.io/github/stars/AmariNoa/BLM-Integration-Core)
+
 # BLM Integration Core
 
 本パッケージは、BOOTH Library Managerがローカルに保持するデータを読み取り、UnityEditor上で利用できるように統合する非公式のUnityパッケージです。
