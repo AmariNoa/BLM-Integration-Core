@@ -8,19 +8,24 @@ namespace com.amari_noa.blm_integration_core.editor
         internal const string LocalizationSourceId = "com.amari-noa.blm-integration-core";
         internal const string LocalizationDisplayName = "BLM Integration Core";
         internal const string LocalizationDefaultLanguageCode = "en-US";
-        internal const string LocalizationFolderAssetPath = "Packages/com.amari-noa.blm-integration-core/Editor/Localization";
-        internal const string CatalogWindowFontAssetPath = "Packages/com.amari-noa.blm-integration-core/Fonts/Noto_Sans_JP/static/NotoSansJP-Regular SDF.asset";
-        internal const string CatalogWindowFontFileAssetPath = "Packages/com.amari-noa.blm-integration-core/Fonts/Noto_Sans_JP/static/NotoSansJP-Regular.ttf";
-        internal const string CatalogWindowEmojiFontFileAssetPath = "Packages/com.amari-noa.blm-integration-core/Fonts/Noto_Color_Emoji/NotoColorEmoji-Regular.ttf";
+        internal const string LocalizationFolderGuid = "73d9097170a79384193da28e6f2d45b7";
+        internal const string CatalogWindowFontAssetGuid = "a9b3494c5d20e964381fd5b2559dca9f";
+        internal const string CatalogWindowFontFileGuid = "0482f662366228542b7c537a82068dc5";
+        internal const string CatalogWindowEmojiFontFileGuid = "aa38dfc743b0d82428e138f1a9f7d3cf";
         internal const string PerformanceLogPrefix = "[BLM Perf]";
         internal static readonly bool EnablePerformanceLogging = false;
 
         internal const string WindowTitle = "BLM Window";
         internal const string ThumbnailCacheEditorPrefsKey = "com.amari-noa.blm-integration-core.thumbnail-cache-max-entries";
+        internal const string PageSizeEditorPrefsKey = "com.amari-noa.blm-integration-core.page-size";
+        internal const string SortKeyEditorPrefsKey = "com.amari-noa.blm-integration-core.sort-key";
+        internal const string SortOrderEditorPrefsKey = "com.amari-noa.blm-integration-core.sort-order";
+        internal const string ShopFilterSortEditorPrefsKey = "com.amari-noa.blm-integration-core.shop-filter-sort";
+        internal const string TagFilterSortEditorPrefsKey = "com.amari-noa.blm-integration-core.tag-filter-sort";
 
         internal static readonly int[] PageSizes = { 50, 100, 150 };
 
-        internal const int DefaultPageSize = 50;
+        internal const int DefaultPageSize = 100;
         internal const int ThumbnailMemoryCacheMaxPageCountCap = 25;
         internal static int ThumbnailMemoryCacheMaxEntriesDefault => GetThumbnailMemoryCacheDefaultEntries();
         internal static int ThumbnailMemoryCacheMaxEntriesMin => GetMaxPageSize();
@@ -29,7 +34,6 @@ namespace com.amari_noa.blm_integration_core.editor
         internal const int ThumbnailRequestConcurrency = 5;
         internal const int ThumbnailRequestTimeoutSeconds = 10;
         internal const int ThumbnailDiskCacheTtlDays = 30;
-        internal const int TagInitialTopCount = 200;
         internal static readonly string[] IntegrationPreferredDisplayExtensions = { ".unitypackage", ".amri" };
         internal static readonly string[] StandalonePreferredDisplayExtensions = { ".unitypackage" };
 

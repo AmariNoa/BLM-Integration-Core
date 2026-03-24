@@ -1,7 +1,7 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
     <Style src="project://database/Packages/com.amari-noa.blm-integration-core/Editor/CatalogWindow/CatalogWindow.uss?fileID=7433441132597879392&amp;guid=8e2c2371a5ec80f489e384dae3303c0c&amp;type=3#CatalogWindow" />
     <ui:VisualElement style="flex-grow: 1; flex-direction: row; align-items: stretch;">
-        <ui:VisualElement name="LeftPanel" style="flex-grow: 1; max-width: 250px; min-width: 250px; padding-top: 8px; padding-right: 8px; padding-bottom: 8px; padding-left: 8px;">
+        <ui:VisualElement name="LeftPanel" style="flex-grow: 1; max-width: 300px; min-width: 300px; padding-top: 8px; padding-right: 8px; padding-bottom: 8px; padding-left: 8px;">
             <ui:VisualElement style="flex-grow: 1; max-height: 96px; min-height: 96px;">
                 <ui:DropdownField name="DisplayModeField" />
                 <ui:DropdownField name="ListSelectorField" />
@@ -19,40 +19,55 @@
                 <ui:Label tabindex="-1" text="Age restriction filter" parse-escape-sequences="true" display-tooltip-when-elided="true" name="AgeRestrictionFilterLabel" style="-unity-text-align: middle-center;" />
                 <ui:DropdownField name="AgeRestrictionFilterField" />
                 <ui:VisualElement style="flex-grow: 1; max-height: 5px; min-height: 5px;" />
-                <ui:Label tabindex="-1" text="Shop filter" parse-escape-sequences="true" display-tooltip-when-elided="true" name="ShopFilterLabel" style="-unity-text-align: middle-center;" />
-                <ui:VisualElement style="flex-grow: 1; max-height: 42px; min-height: 42px; flex-direction: row;">
-                    <ui:VisualElement style="flex-grow: 1; align-self: center;">
-                        <ui:TextField picking-mode="Ignore" name="ShopSearchField" />
+                <ui:VisualElement style="flex-grow: 1;">
+                    <ui:VisualElement style="flex-grow: 1; min-height: 49%; max-height: 49%;">
+                        <ui:Label tabindex="-1" text="Shop filter" parse-escape-sequences="true" display-tooltip-when-elided="true" name="ShopFilterLabel" style="-unity-text-align: middle-center;" />
+                        <ui:VisualElement style="flex-grow: 1; max-height: 32px; min-height: 32px; flex-direction: row;">
+                            <ui:VisualElement style="flex-grow: 1; align-self: center;">
+                                <ui:TextField picking-mode="Ignore" name="ShopSearchField" />
+                            </ui:VisualElement>
+                            <ui:Button text="Clear" parse-escape-sequences="true" display-tooltip-when-elided="true" name="ShopSearchFieldClearButton" style="max-width: 54px; min-width: 54px;" />
+                        </ui:VisualElement>
+                        <ui:DropdownField name="ShopFilterSortDropdown" />
+                        <ui:ListView name="ShopFilterListView" style="flex-grow: 1; min-height: 60px;" />
+                        <ui:Button text="Clear selected tag(s)" parse-escape-sequences="true" display-tooltip-when-elided="true" name="ShopClearButton" />
                     </ui:VisualElement>
-                    <ui:Button text="Clear" parse-escape-sequences="true" display-tooltip-when-elided="true" name="ShopSearchFieldClearButton" style="max-width: 54px; min-width: 54px;" />
-                </ui:VisualElement>
-                <ui:ListView name="ShopFilterListView" style="flex-grow: 1; min-height: 60px;" />
-                <ui:Button text="Clear selected tag(s)" parse-escape-sequences="true" display-tooltip-when-elided="true" name="ShopClearButton" />
-                <ui:VisualElement style="flex-grow: 1; max-height: 5px; min-height: 5px;" />
-                <ui:Label tabindex="-1" text="Tag filter" parse-escape-sequences="true" display-tooltip-when-elided="true" name="TagFilterLabel" style="-unity-text-align: middle-center;" />
-                <ui:VisualElement style="flex-grow: 1; max-height: 42px; min-height: 42px; flex-direction: row;">
-                    <ui:VisualElement style="flex-grow: 1; align-self: center;">
-                        <ui:TextField picking-mode="Ignore" name="TagSearchField" />
+                    <ui:VisualElement style="flex-grow: 1; max-height: 2%; min-height: 2%;" />
+                    <ui:VisualElement style="flex-grow: 1; min-height: 49%; max-height: 49%;">
+                        <ui:Label tabindex="-1" text="Tag filter" parse-escape-sequences="true" display-tooltip-when-elided="true" name="TagFilterLabel" style="-unity-text-align: middle-center;" />
+                        <ui:VisualElement style="flex-grow: 1; max-height: 32px; min-height: 32px; flex-direction: row;">
+                            <ui:VisualElement style="flex-grow: 1; align-self: center;">
+                                <ui:TextField picking-mode="Ignore" name="TagSearchField" />
+                            </ui:VisualElement>
+                            <ui:Button text="Clear" parse-escape-sequences="true" display-tooltip-when-elided="true" name="TagSearchFieldClearButton" style="max-width: 54px; min-width: 54px;" />
+                        </ui:VisualElement>
+                        <ui:DropdownField name="TagFilterSortDropdown" />
+                        <ui:ListView name="TagFilterListView" style="flex-grow: 1; min-height: 60px;" />
+                        <ui:Button text="Clear selected tag(s)" parse-escape-sequences="true" display-tooltip-when-elided="true" name="TagClearButton" />
                     </ui:VisualElement>
-                    <ui:Button text="Clear" parse-escape-sequences="true" display-tooltip-when-elided="true" name="TagSearchFieldClearButton" style="max-width: 54px; min-width: 54px;" />
                 </ui:VisualElement>
-                <ui:ListView name="TagFilterListView" style="flex-grow: 1; min-height: 60px;" />
-                <ui:Button text="Clear selected tag(s)" parse-escape-sequences="true" display-tooltip-when-elided="true" name="TagClearButton" />
             </ui:VisualElement>
-            <ui:VisualElement style="flex-grow: 1; max-height: 5px; min-height: 5px;" />
-            <ui:VisualElement style="flex-grow: 1; flex-direction: column; max-height: 140px; min-height: 140px;">
+            <ui:VisualElement style="flex-grow: 1; max-height: 10px; min-height: 10px;" />
+            <ui:VisualElement style="flex-grow: 0; flex-direction: column; max-height: 130px; min-height: 130px;">
                 <uie:IntegerField label="Thumbnail cache max" name="ThumbnailCacheMaxEntriesField" />
                 <ui:DropdownField label="Language" name="EditorLanguageDropdownField" />
-                <ui:VisualElement style="flex-grow: 1;" />
+                <ui:VisualElement style="flex-grow: 1; min-height: 10px; max-height: 10px;" />
                 <ui:Button text="ReloadDB" parse-escape-sequences="true" display-tooltip-when-elided="true" name="RefreshDbButton" />
             </ui:VisualElement>
         </ui:VisualElement>
         <ui:VisualElement name="MainPanel" style="flex-grow: 1; padding-top: 8px; padding-right: 8px; padding-bottom: 8px; padding-left: 8px;">
-            <ui:VisualElement name="CatalogHeader" style="flex-grow: 1; max-height: 80px; min-height: 80px;">
-                <ui:VisualElement style="flex-grow: 1; max-height: 46px; min-height: 46px; justify-content: center;">
-                    <ui:TextField picking-mode="Ignore" label="Search" value="filler text" name="SearchTextField" />
+            <ui:VisualElement name="CatalogHeader" style="flex-grow: 1; max-height: 120px; min-height: 120px;">
+                <ui:VisualElement style="flex-grow: 1; max-height: 46px; min-height: 46px; justify-content: center; flex-direction: row;">
+                    <ui:VisualElement style="flex-grow: 1;">
+                        <ui:TextField picking-mode="Ignore" label="Search" value="filler text" name="SearchTextField" />
+                    </ui:VisualElement>
+                    <ui:VisualElement style="flex-grow: 1; max-width: 100px; min-width: 100px;">
+                        <ui:Button text="Clear" parse-escape-sequences="true" display-tooltip-when-elided="true" name="SearchTextFieldClearButton" />
+                    </ui:VisualElement>
                 </ui:VisualElement>
                 <ui:Label tabindex="-1" text="Active filter count" parse-escape-sequences="true" display-tooltip-when-elided="true" name="ActiveFilterCountLabel" style="-unity-text-align: middle-center;" />
+                <ui:VisualElement style="flex-grow: 1; max-height: 5px; min-height: 5px;" />
+                <ui:Label tabindex="-1" text="Filtered product count" parse-escape-sequences="true" display-tooltip-when-elided="true" name="FilteredProductCountLabel" style="-unity-text-align: middle-center;" />
             </ui:VisualElement>
             <ui:VisualElement name="CatalogPanel" style="flex-grow: 1; margin-top: 8px; margin-right: 8px; margin-bottom: 8px; margin-left: 8px; align-self: stretch;">
                 <ui:DropdownField label="Page size" name="PageSizeField" />
@@ -72,7 +87,7 @@
             <ui:VisualElement style="flex-grow: 1; flex-direction: row; min-height: 0;">
                 <ui:VisualElement style="flex-grow: 1; min-height: 0; max-width: 50%; min-width: 50%; padding-top: 5px; padding-right: 5px; padding-bottom: 5px; padding-left: 5px;">
                     <ui:VisualElement style="flex-grow: 0; flex-shrink: 0; height: 56px; max-height: 56px; min-height: 56px; overflow: hidden;">
-                        <ui:Label tabindex="-1" text="Product name" parse-escape-sequences="true" display-tooltip-when-elided="true" name="DetailProductNameLabel" style="height: 56px; max-height: 56px; min-height: 56px; white-space: normal; overflow: hidden; text-overflow: clip; -unity-text-align: upper-left;" />
+                        <ui:Label tabindex="-1" text="Product name" parse-escape-sequences="true" display-tooltip-when-elided="true" name="DetailProductNameLabel" style="height: 56px; max-height: 56px; min-height: 56px; white-space: normal; overflow: hidden; text-overflow: clip; -unity-text-align: upper-center;" />
                     </ui:VisualElement>
                     <ui:VisualElement name="DetailThumbnailImage" style="flex-grow: 0; flex-shrink: 0; min-height: 120px; margin-top: 4px; margin-right: 4px; margin-bottom: 4px; margin-left: 4px;" />
                     <ui:VisualElement style="flex-grow: 1; max-height: 10px; min-height: 10px;" />
@@ -90,7 +105,7 @@
                     </ui:VisualElement>
                     <ui:VisualElement style="flex-grow: 0; flex-shrink: 0; flex-direction: column-reverse; max-height: 80px; min-height: 80px;">
                         <ui:Label tabindex="-1" text="Folder path" parse-escape-sequences="true" display-tooltip-when-elided="true" name="DetailFolderPathLabel" style="-unity-text-align: middle-left;" />
-                        <ui:Button text="Button" parse-escape-sequences="true" display-tooltip-when-elided="true" name="OpenFolderPathButton" />
+                        <ui:Button text="Open folder path" parse-escape-sequences="true" display-tooltip-when-elided="true" name="OpenFolderPathButton" />
                     </ui:VisualElement>
                 </ui:VisualElement>
                 <ui:VisualElement style="flex-grow: 1; min-height: 0; max-width: 50%; min-width: 50%; padding-top: 5px; padding-right: 5px; padding-bottom: 5px; padding-left: 5px;">

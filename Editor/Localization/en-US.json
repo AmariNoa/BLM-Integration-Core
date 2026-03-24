@@ -30,12 +30,17 @@
         "r18": "R-18 Only"
       },
       "shop": "Shop Filter",
+      "sort": {
+        "name_asc": "Name",
+        "count_desc": "Count desc"
+      },
       "shop_search_placeholder": "Search shops...",
       "shop_clear": "Clear selected shop(s)",
       "tag": "Tag Filter",
       "tag_search_placeholder": "Search tags...",
       "tag_clear": "Clear selected tag(s)",
-      "applied_count": "{0} filter(s) active"
+      "applied_count": "{0} filter(s) active",
+      "filtered_product_count": "{0} product(s) shown"
     },
     "reload_db": "ReloadDB",
     "editor_language": {
@@ -50,6 +55,7 @@
       "product_name": "Product name",
       "product_files": "Product file(s)",
       "folder_path": "Folder path",
+      "open_folder_path": "Open folder path",
       "other_files": "other files",
       "deselect_all_files": "DeSelect all file(s)",
       "select_all_files": "Select all file(s)"
@@ -67,6 +73,7 @@
       "title": "Import Queue"
     },
     "button": {
+      "clear": "Clear",
       "cancel": "Cancel",
       "import": "Import"
     },
@@ -99,6 +106,7 @@
       }
     },
     "thumbnail_cache": {
+      "max_entries_label": "Thumbnail cache max",
       "window_open": {
         "title": "BLM Window Is Open",
         "message": "Close the BLM Window before clearing thumbnail cache."

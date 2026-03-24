@@ -30,12 +30,17 @@
         "r18": "R-18のみ"
       },
       "shop": "ショップフィルター",
+      "sort": {
+        "name_asc": "名前順",
+        "count_desc": "件数が多い順"
+      },
       "shop_search_placeholder": "ショップを検索...",
       "shop_clear": "選択したショップをクリア",
       "tag": "タグフィルター",
       "tag_search_placeholder": "タグを検索...",
       "tag_clear": "選択したタグをクリア",
-      "applied_count": "{0} 件のフィルターを適用中"
+      "applied_count": "{0} 件のフィルターを適用中",
+      "filtered_product_count": "表示対象 {0} 件"
     },
     "reload_db": "DB再読み込み",
     "editor_language": {
@@ -50,6 +55,7 @@
       "product_name": "商品名",
       "product_files": "商品ファイル",
       "folder_path": "フォルダーパス",
+      "open_folder_path": "フォルダーを開く",
       "other_files": "その他ファイル",
       "deselect_all_files": "すべて選択解除",
       "select_all_files": "すべて選択"
@@ -67,6 +73,7 @@
       "title": "インポートキュー"
     },
     "button": {
+      "clear": "クリア",
       "cancel": "キャンセル",
       "import": "インポート"
     },
@@ -99,6 +106,7 @@
       }
     },
     "thumbnail_cache": {
+      "max_entries_label": "サムネイルキャッシュ上限",
       "window_open": {
         "title": "BLMウィンドウを開いています",
         "message": "サムネイルキャッシュを削除する前に BLM ウィンドウを閉じてください。"

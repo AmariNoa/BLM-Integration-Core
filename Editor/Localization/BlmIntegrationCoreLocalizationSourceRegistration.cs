@@ -9,10 +9,17 @@ namespace com.amari_noa.blm_integration_core.editor
     {
         static BlmIntegrationCoreLocalizationSourceRegistration()
         {
-            var localizationFolderGuid = AssetDatabase.AssetPathToGUID(BlmConstants.LocalizationFolderAssetPath);
+            var localizationFolderGuid = BlmConstants.LocalizationFolderGuid;
             if (string.IsNullOrWhiteSpace(localizationFolderGuid))
             {
-                Debug.LogWarning("[BLM Integration Core] Localization folder guid could not be resolved.");
+                Debug.LogWarning("[BLM Integration Core] Localization folder guid is empty.");
+                return;
+            }
+
+            var localizationFolderPath = AssetDatabase.GUIDToAssetPath(localizationFolderGuid);
+            if (string.IsNullOrWhiteSpace(localizationFolderPath))
+            {
+                Debug.LogWarning($"[BLM Integration Core] Localization folder guid could not be resolved. guid={localizationFolderGuid}");
                 return;
             }
 

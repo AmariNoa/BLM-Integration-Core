@@ -53,13 +53,25 @@
 
 .blm-file-row {
     flex-direction: row;
-    align-items: center;
+    align-items: stretch;
+    min-width: 0;
     min-height: 20px;
+}
+
+.blm-file-row .unity-toggle {
+    flex-shrink: 0;
+    align-self: center;
 }
 
 .blm-file-row-label {
     margin-left: 4px;
     flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    -unity-text-align: upper-left;
 }
 
 .blm-file-row-section {
@@ -76,6 +88,16 @@
     -unity-font-style: bold;
     color: rgb(205, 205, 205);
     -unity-text-align: middle-center;
+}
+
+.blm-file-row-section-with-toggle {
+    position: relative;
+    justify-content: center;
+}
+
+.blm-file-row-section-with-toggle .unity-toggle {
+    position: absolute;
+    left: 0;
 }
 
 .blm-selected-products-scroll-view {
@@ -110,10 +132,9 @@
 
 .blm-selected-file-row {
     flex-direction: row;
-    align-items: center;
+    align-items: stretch;
     min-width: 0;
-    min-height: 54px;
-    max-height: 54px;
+    min-height: 20px;
 }
 
 .blm-selected-file-row .unity-toggle {
@@ -126,12 +147,10 @@
     flex-grow: 1;
     flex-shrink: 1;
     min-width: 0;
-    min-height: 54px;
-    max-height: 54px;
     white-space: normal;
-    overflow: hidden;
+    overflow: visible;
     text-overflow: clip;
-    -unity-text-align: middle-left;
+    -unity-text-align: upper-left;
 }
 
 .blm-import-queue-list-view {

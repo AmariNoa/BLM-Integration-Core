@@ -19,7 +19,7 @@ namespace com.amari_noa.blm_integration_core.editor
         private const string NotSetToken = "__NOT_SET__";
         private static readonly Vector2 InitialWindowSize = new Vector2(1320f, 840f);
         private static readonly Vector2 InitialWindowPosition = new Vector2(80f, 80f);
-        private static readonly Vector2 MinimumWindowSize = new Vector2(960f, 800f);
+        private static readonly Vector2 MinimumWindowSize = new Vector2(960f, 850f);
         private static readonly Vector2 MaximumWindowSize = new Vector2(10000f, 10000f);
         private static FontAsset _catalogWindowFontAsset;
 
@@ -51,6 +51,8 @@ namespace com.amari_noa.blm_integration_core.editor
         private DropdownField _pageSizeField;
         private DropdownField _editorLanguageDropdownField;
         private DropdownField _selectedItemsFilterDropDownField;
+        private DropdownField _shopFilterSortDropdownField;
+        private DropdownField _tagFilterSortDropdownField;
         private TextField _searchField;
         private TextField _shopSearchField;
         private TextField _tagSearchField;
@@ -69,12 +71,14 @@ namespace com.amari_noa.blm_integration_core.editor
         private Label _detailFolderPathLabel;
         private Label _importQueueTitleLabel;
         private Label _activeFilterCountLabel;
+        private Label _filteredProductCountLabel;
         private Label _listModeEmptyStateLabel;
         private VisualElement _contentRoot;
         private VisualElement _loadingOverlay;
 
         private BlmItemRecord _detailItem;
         private List<BlmFileRecord> _detailFiles = new List<BlmFileRecord>();
+        private HashSet<string> _detailDuplicateFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private List<DetailFileListEntry> _detailFileListEntries = new List<DetailFileListEntry>();
         private List<BlmItemRecord> _viewItems = new List<BlmItemRecord>();
         private int _page = 1;
@@ -210,7 +214,8 @@ namespace com.amari_noa.blm_integration_core.editor
             var fontAsset = ResolveCatalogWindowFontAsset();
             if (fontAsset == null)
             {
-                Debug.LogWarning($"[BLM Integration Core] Catalog font asset not found: {BlmConstants.CatalogWindowFontAssetPath}");
+                var fontAssetPath = AssetDatabase.GUIDToAssetPath(BlmConstants.CatalogWindowFontAssetGuid);
+                Debug.LogWarning($"[BLM Integration Core] Catalog font asset not found. guid={BlmConstants.CatalogWindowFontAssetGuid}, path={fontAssetPath}");
                 return;
             }
 
@@ -224,14 +229,14 @@ namespace com.amari_noa.blm_integration_core.editor
                 return _catalogWindowFontAsset;
             }
 
-            var baseFontFile = AssetDatabase.LoadAssetAtPath<Font>(BlmConstants.CatalogWindowFontFileAssetPath);
+            var baseFontFile = LoadAssetByGuid<Font>(BlmConstants.CatalogWindowFontFileGuid);
             if (baseFontFile != null)
             {
                 var baseFontAsset = FontAsset.CreateFontAsset(baseFontFile);
                 if (baseFontAsset != null)
                 {
                     var fallbackAssets = new List<FontAsset>();
-                    var emojiFontFile = AssetDatabase.LoadAssetAtPath<Font>(BlmConstants.CatalogWindowEmojiFontFileAssetPath);
+                    var emojiFontFile = LoadAssetByGuid<Font>(BlmConstants.CatalogWindowEmojiFontFileGuid);
                     if (emojiFontFile != null)
                     {
                         var emojiFontAsset = FontAsset.CreateFontAsset(emojiFontFile);
@@ -247,8 +252,24 @@ namespace com.amari_noa.blm_integration_core.editor
                 }
             }
 
-            _catalogWindowFontAsset = AssetDatabase.LoadAssetAtPath<FontAsset>(BlmConstants.CatalogWindowFontAssetPath);
+            _catalogWindowFontAsset = LoadAssetByGuid<FontAsset>(BlmConstants.CatalogWindowFontAssetGuid);
             return _catalogWindowFontAsset;
+        }
+
+        private static T LoadAssetByGuid<T>(string guid) where T : UnityEngine.Object
+        {
+            if (string.IsNullOrWhiteSpace(guid))
+            {
+                return null;
+            }
+
+            var assetPath = AssetDatabase.GUIDToAssetPath(guid);
+            if (string.IsNullOrWhiteSpace(assetPath))
+            {
+                return null;
+            }
+
+            return AssetDatabase.LoadAssetAtPath<T>(assetPath);
         }
 
         private void RefreshIfInitialized()
@@ -297,6 +318,8 @@ namespace com.amari_noa.blm_integration_core.editor
             _searchField = rootVisualElement.Q<TextField>("SearchTextField");
             _shopSearchField = rootVisualElement.Q<TextField>("ShopSearchField");
             _tagSearchField = rootVisualElement.Q<TextField>("TagSearchField");
+            _shopFilterSortDropdownField = rootVisualElement.Q<DropdownField>("ShopFilterSortDropdown");
+            _tagFilterSortDropdownField = rootVisualElement.Q<DropdownField>("TagFilterSortDropdown");
             _shopListView = rootVisualElement.Q<ListView>("ShopFilterListView");
             _tagListView = rootVisualElement.Q<ListView>("TagFilterListView");
             _detailFileListView = rootVisualElement.Q<ListView>("DetailFileListView");
@@ -313,6 +336,7 @@ namespace com.amari_noa.blm_integration_core.editor
             _detailFolderPathLabel = rootVisualElement.Q<Label>("DetailFolderPathLabel");
             _importQueueTitleLabel = rootVisualElement.Q<Label>("ImportQueueTitleLabel");
             _activeFilterCountLabel = rootVisualElement.Q<Label>("ActiveFilterCountLabel");
+            _filteredProductCountLabel = rootVisualElement.Q<Label>("FilteredProductCountLabel");
             _listModeEmptyStateLabel = rootVisualElement.Q<Label>("ListModeEmptyStateLabel");
         }
 
@@ -321,22 +345,35 @@ namespace com.amari_noa.blm_integration_core.editor
             _displayModeField.choices = new List<string> { "All", "ByList" };
             _displayModeField.index = 0;
             _sortKeyField.choices = new List<string> { "ProductName", "ShopName", "RegisteredAt", "PublishedAt" };
-            _sortKeyField.index = 0;
+            _sortKeyField.index = LoadDropdownIndexFromEditorPrefs(
+                BlmConstants.SortKeyEditorPrefsKey,
+                defaultIndex: 0,
+                choiceCount: _sortKeyField.choices.Count);
             _sortOrderField.choices = new List<string> { "Ascending", "Descending" };
-            _sortOrderField.index = 0;
+            _sortOrderField.index = LoadDropdownIndexFromEditorPrefs(
+                BlmConstants.SortOrderEditorPrefsKey,
+                defaultIndex: 0,
+                choiceCount: _sortOrderField.choices.Count);
             _ageFilterField.choices = new List<string> { "Any", "AllAges", "R18" };
             _ageFilterField.index = 0;
             _pageSizeField.choices = BlmConstants.PageSizes.Select(x => x.ToString(CultureInfo.InvariantCulture)).ToList();
-            var defaultPageSizeIndex = Array.IndexOf(BlmConstants.PageSizes, 100);
-            if (defaultPageSizeIndex < 0)
+            var loadedPageSize = LoadPageSizeFromEditorPrefs();
+            var pageSizeIndex = Array.IndexOf(BlmConstants.PageSizes, loadedPageSize);
+            if (pageSizeIndex >= 0)
             {
-                defaultPageSizeIndex = 0;
+                _pageSizeField.index = pageSizeIndex;
+                _pageSize = loadedPageSize;
             }
-
-            _pageSizeField.index = defaultPageSizeIndex;
-            if (!int.TryParse(_pageSizeField.value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _pageSize))
+            else if (BlmConstants.PageSizes.Length > 0)
             {
-                _pageSize = BlmConstants.PageSizes[Mathf.Clamp(defaultPageSizeIndex, 0, BlmConstants.PageSizes.Length - 1)];
+                _pageSize = BlmConstants.PageSizes[0];
+                _pageSizeField.index = 0;
+                PersistPageSizeToEditorPrefs(_pageSize);
+            }
+            else
+            {
+                _pageSize = Math.Max(1, BlmConstants.DefaultPageSize);
+                _pageSizeField.index = -1;
             }
 
             if (_selectedItemsFilterDropDownField != null)
@@ -345,11 +382,15 @@ namespace com.amari_noa.blm_integration_core.editor
                 _selectedItemsFilterDropDownField.index = 0;
             }
 
+            SetupFilterSortDropdown(_shopFilterSortDropdownField, BlmConstants.ShopFilterSortEditorPrefsKey);
+            SetupFilterSortDropdown(_tagFilterSortDropdownField, BlmConstants.TagFilterSortEditorPrefsKey);
+
             SyncSelectedItemsFilterMode();
             SyncEditorLanguageDropdownChoices();
             _thumbnailCacheMaxEntriesField.isDelayed = true;
             _thumbnailCacheMaxEntriesField.SetValueWithoutNotify(_thumbnailCacheService.MaxEntries);
             _searchField.value = string.Empty;
+            _searchField.isDelayed = true;
             _searchField.pickingMode = PickingMode.Position;
             _shopSearchField.value = string.Empty;
             _shopSearchField.pickingMode = PickingMode.Position;
@@ -478,9 +519,23 @@ namespace com.amari_noa.blm_integration_core.editor
                 row.Add(label);
                 toggle.RegisterValueChangedCallback(evt =>
                 {
-                    if (toggle.userData is BlmFileRecord file && _detailItem != null)
+                    if (_detailItem == null)
+                    {
+                        return;
+                    }
+
+                    if (toggle.userData is BlmFileRecord file)
                     {
                         SetSelected(_detailItem, file.FullPath, evt.newValue);
+                        _detailFileListView.Rebuild();
+                        RebuildSelectedPanel();
+                        UpdateConfirmButtonState();
+                        return;
+                    }
+
+                    if (toggle.userData is string sectionExtension)
+                    {
+                        SetSectionFilesSelection(sectionExtension, evt.newValue);
                         _detailFileListView.Rebuild();
                         RebuildSelectedPanel();
                         UpdateConfirmButtonState();
@@ -501,9 +556,12 @@ namespace com.amari_noa.blm_integration_core.editor
                 if (i < 0 || i >= _detailFileListEntries.Count)
                 {
                     row.RemoveFromClassList("blm-file-row-section");
+                    row.RemoveFromClassList("blm-file-row-section-with-toggle");
                     label.RemoveFromClassList("blm-file-row-section-label");
                     toggle.style.display = DisplayStyle.None;
                     toggle.userData = null;
+                    toggle.showMixedValue = false;
+                    toggle.SetValueWithoutNotify(false);
                     label.text = string.Empty;
                     return;
                 }
@@ -513,21 +571,38 @@ namespace com.amari_noa.blm_integration_core.editor
                 {
                     row.AddToClassList("blm-file-row-section");
                     label.AddToClassList("blm-file-row-section-label");
-                    toggle.style.display = DisplayStyle.None;
-                    toggle.userData = null;
+                    if (entry.CanToggleSectionSelection)
+                    {
+                        row.AddToClassList("blm-file-row-section-with-toggle");
+                        toggle.style.display = DisplayStyle.Flex;
+                        toggle.userData = entry.SectionExtension;
+                        ApplyDetailSectionToggleState(toggle, entry.SectionExtension);
+                    }
+                    else
+                    {
+                        row.RemoveFromClassList("blm-file-row-section-with-toggle");
+                        toggle.style.display = DisplayStyle.None;
+                        toggle.userData = null;
+                        toggle.showMixedValue = false;
+                        toggle.SetValueWithoutNotify(false);
+                    }
+
                     label.text = entry.DisplayText;
                     return;
                 }
 
                 row.RemoveFromClassList("blm-file-row-section");
+                row.RemoveFromClassList("blm-file-row-section-with-toggle");
                 label.RemoveFromClassList("blm-file-row-section-label");
                 toggle.style.display = DisplayStyle.Flex;
+                toggle.showMixedValue = false;
                 var file = entry.File;
                 toggle.userData = file;
                 toggle.SetValueWithoutNotify(file != null && IsSelected(_detailItem?.ProductId, file.FullPath));
-                label.text = file?.FileName ?? string.Empty;
+                label.text = BuildFileDisplayName(_detailItem, file, _detailDuplicateFileNames);
             };
             _detailFileListView.selectionType = SelectionType.None;
+            _detailFileListView.virtualizationMethod = CollectionVirtualizationMethod.DynamicHeight;
 
             _displayModeField.RegisterValueChangedCallback(_ =>
             {
@@ -559,6 +634,11 @@ namespace com.amari_noa.blm_integration_core.editor
                     return;
                 }
 
+                PersistDropdownIndexToEditorPrefs(
+                    BlmConstants.SortKeyEditorPrefsKey,
+                    _sortKeyField.index,
+                    _sortKeyField.choices.Count,
+                    defaultIndex: 0);
                 ApplyFilter(true);
             });
             _sortOrderField.RegisterValueChangedCallback(_ =>
@@ -568,6 +648,11 @@ namespace com.amari_noa.blm_integration_core.editor
                     return;
                 }
 
+                PersistDropdownIndexToEditorPrefs(
+                    BlmConstants.SortOrderEditorPrefsKey,
+                    _sortOrderField.index,
+                    _sortOrderField.choices.Count,
+                    defaultIndex: 0);
                 ApplyFilter(true);
             });
             _categoryFilterField.RegisterValueChangedCallback(_ =>
@@ -626,6 +711,28 @@ namespace com.amari_noa.blm_integration_core.editor
 
                 RebuildVisibleTags();
             });
+            _shopFilterSortDropdownField?.RegisterValueChangedCallback(_ =>
+            {
+                if (_suppressUiCallbacks)
+                {
+                    return;
+                }
+
+                PersistFilterSortMode(BlmConstants.ShopFilterSortEditorPrefsKey, _shopFilterSortDropdownField);
+                ResortShopChoices();
+                RebuildVisibleShops();
+            });
+            _tagFilterSortDropdownField?.RegisterValueChangedCallback(_ =>
+            {
+                if (_suppressUiCallbacks)
+                {
+                    return;
+                }
+
+                PersistFilterSortMode(BlmConstants.TagFilterSortEditorPrefsKey, _tagFilterSortDropdownField);
+                ResortTagChoices();
+                RebuildVisibleTags();
+            });
             _pageSizeField.RegisterValueChangedCallback(_ =>
             {
                 if (_suppressUiCallbacks)
@@ -633,7 +740,17 @@ namespace com.amari_noa.blm_integration_core.editor
                     return;
                 }
 
-                if (int.TryParse(_pageSizeField.value, out var parsed)) _pageSize = parsed;
+                if (int.TryParse(_pageSizeField.value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed))
+                {
+                    var normalizedPageSize = NormalizePageSize(parsed);
+                    _pageSize = normalizedPageSize;
+                    PersistPageSizeToEditorPrefs(normalizedPageSize);
+                    if (normalizedPageSize != parsed)
+                    {
+                        _pageSizeField.SetValueWithoutNotify(normalizedPageSize.ToString(CultureInfo.InvariantCulture));
+                    }
+                }
+
                 ApplyFilter(true);
             });
             _editorLanguageDropdownField?.RegisterValueChangedCallback(evt =>
@@ -680,6 +797,11 @@ namespace com.amari_noa.blm_integration_core.editor
                 _thumbnailCacheMaxEntriesField.SetValueWithoutNotify(_thumbnailCacheService.SetMaxEntries(evt.newValue));
             });
             rootVisualElement.Q<Button>("RefreshDbButton").clicked += () => ReloadDb(true);
+            rootVisualElement.Q<Button>("SearchTextFieldClearButton").clicked += () =>
+            {
+                _searchField.SetValueWithoutNotify(string.Empty);
+                ApplyFilter(true);
+            };
             rootVisualElement.Q<Button>("ShopSearchFieldClearButton").clicked += () =>
             {
                 _shopSearchField.value = string.Empty;
@@ -854,6 +976,7 @@ namespace com.amari_noa.blm_integration_core.editor
 
             var updateCountStopwatch = System.Diagnostics.Stopwatch.StartNew();
             UpdateFilterCount();
+            UpdateFilteredProductCount();
             updateCountStopwatch.Stop();
 
             totalStopwatch.Stop();
@@ -1082,7 +1205,7 @@ namespace com.amari_noa.blm_integration_core.editor
                 counts[shop]++;
             }
 
-            _allShops.AddRange(counts.OrderByDescending(x => x.Value).ThenBy(x => x.Key, StringComparer.Ordinal).Select(x => new ShopEntry(x.Key, x.Value)));
+            _allShops.AddRange(SortShopEntries(counts.Select(x => new ShopEntry(x.Key, x.Value))));
             stopwatch.Stop();
             PerfLog(
                 $"RebuildShopChoices completed in {stopwatch.ElapsedMilliseconds} ms. " +
@@ -1096,7 +1219,7 @@ namespace com.amari_noa.blm_integration_core.editor
             var query = (_shopSearchField.value ?? string.Empty).Trim();
             if (string.IsNullOrWhiteSpace(query))
             {
-                _visibleShops.AddRange(_allShops.Take(BlmConstants.TagInitialTopCount));
+                _visibleShops.AddRange(_allShops);
             }
             else
             {
@@ -1129,7 +1252,7 @@ namespace com.amari_noa.blm_integration_core.editor
                     counts[tag]++;
                 }
             }
-            _allTags.AddRange(counts.OrderByDescending(x => x.Value).ThenBy(x => x.Key, StringComparer.Ordinal).Select(x => new TagEntry(x.Key, x.Value)));
+            _allTags.AddRange(SortTagEntries(counts.Select(x => new TagEntry(x.Key, x.Value))));
         }
 
         private void RebuildVisibleTags()
@@ -1138,7 +1261,7 @@ namespace com.amari_noa.blm_integration_core.editor
             var query = (_tagSearchField.value ?? string.Empty).Trim();
             if (string.IsNullOrWhiteSpace(query))
             {
-                _visibleTags.AddRange(_allTags.Take(BlmConstants.TagInitialTopCount));
+                _visibleTags.AddRange(_allTags);
             }
             else
             {
@@ -1151,6 +1274,109 @@ namespace com.amari_noa.blm_integration_core.editor
             {
                 _tagListView.ScrollToItem(0);
             }
+        }
+
+        private void SetupFilterSortDropdown(DropdownField field, string editorPrefsKey)
+        {
+            if (field == null)
+            {
+                return;
+            }
+
+            field.choices = BuildFilterSortChoices();
+            field.index = (int)LoadFilterSortMode(editorPrefsKey);
+        }
+
+        private static FilterCandidateSortMode LoadFilterSortMode(string editorPrefsKey)
+        {
+            var hasStoredSetting = EditorPrefs.HasKey(editorPrefsKey);
+            var storedValue = EditorPrefs.GetInt(editorPrefsKey, (int)FilterCandidateSortMode.NameAscending);
+            var mode = storedValue == (int)FilterCandidateSortMode.CountDescending
+                ? FilterCandidateSortMode.CountDescending
+                : FilterCandidateSortMode.NameAscending;
+            if (!hasStoredSetting || storedValue != (int)mode)
+            {
+                EditorPrefs.SetInt(editorPrefsKey, (int)mode);
+            }
+
+            return mode;
+        }
+
+        private static void PersistFilterSortMode(string editorPrefsKey, DropdownField field)
+        {
+            EditorPrefs.SetInt(editorPrefsKey, (int)GetFilterSortMode(field));
+        }
+
+        private static FilterCandidateSortMode GetFilterSortMode(DropdownField field)
+        {
+            return field != null && field.index == (int)FilterCandidateSortMode.CountDescending
+                ? FilterCandidateSortMode.CountDescending
+                : FilterCandidateSortMode.NameAscending;
+        }
+
+        private List<string> BuildFilterSortChoices()
+        {
+            return new List<string>
+            {
+                L("blm.filter.sort.name_asc", "Name"),
+                L("blm.filter.sort.count_desc", "Count desc")
+            };
+        }
+
+        private IEnumerable<ShopEntry> SortShopEntries(IEnumerable<ShopEntry> entries)
+        {
+            var source = entries ?? Enumerable.Empty<ShopEntry>();
+            if (GetFilterSortMode(_shopFilterSortDropdownField) == FilterCandidateSortMode.CountDescending)
+            {
+                return source
+                    .OrderByDescending(x => x.Count)
+                    .ThenBy(x => x.Shop, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(x => x.Shop, StringComparer.Ordinal);
+            }
+
+            return source
+                .OrderBy(x => x.Shop, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(x => x.Shop, StringComparer.Ordinal);
+        }
+
+        private IEnumerable<TagEntry> SortTagEntries(IEnumerable<TagEntry> entries)
+        {
+            var source = entries ?? Enumerable.Empty<TagEntry>();
+            if (GetFilterSortMode(_tagFilterSortDropdownField) == FilterCandidateSortMode.CountDescending)
+            {
+                return source
+                    .OrderByDescending(x => x.Count)
+                    .ThenBy(x => x.Tag, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(x => x.Tag, StringComparer.Ordinal);
+            }
+
+            return source
+                .OrderBy(x => x.Tag, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(x => x.Tag, StringComparer.Ordinal);
+        }
+
+        private void ResortShopChoices()
+        {
+            if (_allShops.Count <= 1)
+            {
+                return;
+            }
+
+            var sorted = SortShopEntries(_allShops).ToList();
+            _allShops.Clear();
+            _allShops.AddRange(sorted);
+        }
+
+        private void ResortTagChoices()
+        {
+            if (_allTags.Count <= 1)
+            {
+                return;
+            }
+
+            var sorted = SortTagEntries(_allTags).ToList();
+            _allTags.Clear();
+            _allTags.AddRange(sorted);
         }
 
         private string SelectedCategoryValue()
@@ -1485,6 +1711,7 @@ namespace com.amari_noa.blm_integration_core.editor
                 _detailFolderPathLabel.text = L("blm.detail.folder_path", "Folder path");
                 _openFolderPathButton?.SetEnabled(false);
                 _detailFiles = new List<BlmFileRecord>();
+                _detailDuplicateFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 _detailFileListEntries = new List<DetailFileListEntry>();
                 _detailFileListView.itemsSource = _detailFileListEntries;
                 _detailFileListView.Rebuild();
@@ -1497,6 +1724,7 @@ namespace com.amari_noa.blm_integration_core.editor
             _detailFolderPathLabel.text = item.RootFolderPath;
             _openFolderPathButton?.SetEnabled(!string.IsNullOrWhiteSpace(item.RootFolderPath) && Directory.Exists(item.RootFolderPath));
             _detailFiles = item.Files.OrderBy(f => ExtensionPriority(f.FileExtension)).ThenBy(f => f.FileName, StringComparer.OrdinalIgnoreCase).ToList();
+            _detailDuplicateFileNames = BuildDuplicateFileNameSet(_detailFiles);
             _detailFileListEntries = BuildDetailFileListEntries(_detailFiles);
             _detailFileListView.itemsSource = _detailFileListEntries;
             _detailFileListView.Rebuild();
@@ -1661,6 +1889,80 @@ namespace com.amari_noa.blm_integration_core.editor
             UpdateConfirmButtonState();
         }
 
+        private void SetSectionFilesSelection(string normalizedExtension, bool selected)
+        {
+            if (_detailItem == null || string.IsNullOrWhiteSpace(normalizedExtension))
+            {
+                return;
+            }
+
+            EnsureItemFilesLoaded(_detailItem);
+            foreach (var file in _detailItem.Files)
+            {
+                if (file == null || !string.Equals(NormalizeExtension(file.FileExtension), normalizedExtension, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                SetSelected(_detailItem, file.FullPath, selected);
+            }
+        }
+
+        private DetailSectionSelectionState GetDetailSectionSelectionState(string normalizedExtension)
+        {
+            if (_detailItem == null || string.IsNullOrWhiteSpace(normalizedExtension))
+            {
+                return DetailSectionSelectionState.Off;
+            }
+
+            EnsureItemFilesLoaded(_detailItem);
+
+            var sectionFiles = (_detailItem.Files ?? new List<BlmFileRecord>())
+                .Where(file => file != null && string.Equals(NormalizeExtension(file.FileExtension), normalizedExtension, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            if (sectionFiles.Count == 0)
+            {
+                return DetailSectionSelectionState.Off;
+            }
+
+            var selectedCount = sectionFiles.Count(file => IsSelected(_detailItem.ProductId, file.FullPath));
+            if (selectedCount <= 0)
+            {
+                return DetailSectionSelectionState.Off;
+            }
+
+            if (selectedCount >= sectionFiles.Count)
+            {
+                return DetailSectionSelectionState.On;
+            }
+
+            return DetailSectionSelectionState.Mixed;
+        }
+
+        private void ApplyDetailSectionToggleState(Toggle toggle, string normalizedExtension)
+        {
+            if (toggle == null)
+            {
+                return;
+            }
+
+            var state = GetDetailSectionSelectionState(normalizedExtension);
+            toggle.showMixedValue = false;
+            switch (state)
+            {
+                case DetailSectionSelectionState.On:
+                    toggle.SetValueWithoutNotify(true);
+                    break;
+                case DetailSectionSelectionState.Mixed:
+                    toggle.SetValueWithoutNotify(false);
+                    toggle.showMixedValue = true;
+                    break;
+                default:
+                    toggle.SetValueWithoutNotify(false);
+                    break;
+            }
+        }
+
         private void ClearAllSelectedFiles()
         {
             if (_selectedByProduct.Count == 0 && _selectedOrder.Count == 0)
@@ -1695,6 +1997,7 @@ namespace com.amari_noa.blm_integration_core.editor
                 {
                     continue;
                 }
+                var duplicateFileNames = BuildDuplicateFileNameSet(visibleFiles);
 
                 var fold = new Foldout { text = $"{item.ProductName} / {item.ShopName}" };
                 fold.AddToClassList("blm-selected-product-foldout");
@@ -1727,7 +2030,7 @@ namespace com.amari_noa.blm_integration_core.editor
                             UpdateConfirmButtonState();
                         }
                     });
-                    var label = new Label(file.FileName);
+                    var label = new Label(BuildFileDisplayName(item, file, duplicateFileNames));
                     label.AddToClassList("blm-selected-file-row-label");
                     row.Add(toggle);
                     row.Add(label);
@@ -1916,6 +2219,55 @@ namespace com.amari_noa.blm_integration_core.editor
             return Path.GetFileName(sourcePath) ?? sourcePath;
         }
 
+        private static HashSet<string> BuildDuplicateFileNameSet(IEnumerable<BlmFileRecord> files)
+        {
+            var duplicateFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (files == null)
+            {
+                return duplicateFileNames;
+            }
+
+            var nameCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            foreach (var file in files)
+            {
+                var fileName = file?.FileName;
+                if (string.IsNullOrWhiteSpace(fileName))
+                {
+                    continue;
+                }
+
+                nameCounts.TryGetValue(fileName, out var count);
+                nameCounts[fileName] = count + 1;
+            }
+
+            foreach (var pair in nameCounts)
+            {
+                if (pair.Value > 1)
+                {
+                    duplicateFileNames.Add(pair.Key);
+                }
+            }
+
+            return duplicateFileNames;
+        }
+
+        private static string BuildFileDisplayName(BlmItemRecord item, BlmFileRecord file, HashSet<string> duplicateFileNames)
+        {
+            var fileName = file?.FileName ?? string.Empty;
+            if (file == null || string.IsNullOrWhiteSpace(fileName))
+            {
+                return fileName;
+            }
+
+            if (duplicateFileNames == null || !duplicateFileNames.Contains(fileName))
+            {
+                return fileName;
+            }
+
+            var relativePath = BuildNormalizedRelativePath(item?.RootFolderPath, file.FullPath);
+            return string.IsNullOrWhiteSpace(relativePath) ? fileName : relativePath;
+        }
+
         private static string CollapseRedundantTopLevelDirectory(string rootFolderPath, string relativePath)
         {
             if (string.IsNullOrWhiteSpace(rootFolderPath) || string.IsNullOrWhiteSpace(relativePath))
@@ -2008,7 +2360,7 @@ namespace com.amari_noa.blm_integration_core.editor
                     continue;
                 }
 
-                entries.Add(DetailFileListEntry.CreateSection(BuildDetailSectionHeaderText(preferredExtension)));
+                entries.Add(DetailFileListEntry.CreateSection(BuildDetailSectionHeaderText(preferredExtension), preferredExtension));
                 foreach (var file in sectionFiles)
                 {
                     entries.Add(DetailFileListEntry.CreateFile(file));
@@ -2104,7 +2456,19 @@ namespace com.amari_noa.blm_integration_core.editor
                 return;
             }
 
-            EditorUtility.RevealInFinder(folderPath);
+            try
+            {
+                var startInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = folderPath,
+                    UseShellExecute = true
+                };
+                System.Diagnostics.Process.Start(startInfo);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[BLM Integration Core] Failed to open detail folder path: {folderPath}, error={ex.Message}");
+            }
         }
 
         private int TotalPages()
@@ -2283,6 +2647,19 @@ namespace com.amari_noa.blm_integration_core.editor
                 count);
         }
 
+        private void UpdateFilteredProductCount()
+        {
+            if (_filteredProductCountLabel == null)
+            {
+                return;
+            }
+
+            _filteredProductCountLabel.text = string.Format(
+                CultureInfo.InvariantCulture,
+                L("blm.filter.filtered_product_count", "{0} product(s) shown"),
+                _viewItems?.Count ?? 0);
+        }
+
         private bool IsSelected(string productId, string path)
         {
             return !string.IsNullOrWhiteSpace(productId) &&
@@ -2327,6 +2704,8 @@ namespace com.amari_noa.blm_integration_core.editor
                         L("blm.selected_items.filter.selected_only", "Selected Only"),
                         L("blm.selected_items.filter.all", "All")
                     });
+                ReplaceChoicesPreservingIndex(_shopFilterSortDropdownField, BuildFilterSortChoices());
+                ReplaceChoicesPreservingIndex(_tagFilterSortDropdownField, BuildFilterSortChoices());
                 SyncSelectedItemsFilterMode();
                 SyncEditorLanguageDropdownChoices();
             });
@@ -2337,6 +2716,11 @@ namespace com.amari_noa.blm_integration_core.editor
 
             _searchField.label = L("blm.search.label", "Search");
             _pageSizeField.label = L("blm.page_size", "Page size");
+            if (_thumbnailCacheMaxEntriesField != null)
+            {
+                _thumbnailCacheMaxEntriesField.label = L("blm.thumbnail_cache.max_entries_label", "Thumbnail cache max");
+            }
+
             rootVisualElement.Q<Label>("SortLabel").text = L("blm.sort.label", "Sort");
             rootVisualElement.Q<Label>("CategoryFilterLabel").text = L("blm.filter.category", "Category Filter");
             rootVisualElement.Q<Label>("AgeRestrictionFilterLabel").text = L("blm.filter.age.label", "Age Restriction Filter");
@@ -2347,6 +2731,25 @@ namespace com.amari_noa.blm_integration_core.editor
             {
                 _importQueueTitleLabel.text = L("blm.import_queue.title", "Import Queue");
             }
+
+            var searchFieldClearButton = rootVisualElement.Q<Button>("SearchTextFieldClearButton");
+            if (searchFieldClearButton != null)
+            {
+                searchFieldClearButton.text = L("blm.button.clear", "Clear");
+            }
+
+            var shopSearchFieldClearButton = rootVisualElement.Q<Button>("ShopSearchFieldClearButton");
+            if (shopSearchFieldClearButton != null)
+            {
+                shopSearchFieldClearButton.text = L("blm.button.clear", "Clear");
+            }
+
+            var tagSearchFieldClearButton = rootVisualElement.Q<Button>("TagSearchFieldClearButton");
+            if (tagSearchFieldClearButton != null)
+            {
+                tagSearchFieldClearButton.text = L("blm.button.clear", "Clear");
+            }
+
             rootVisualElement.Q<Button>("ShopClearButton").text = L("blm.filter.shop_clear", "Clear selected shop(s)");
             rootVisualElement.Q<Button>("TagClearButton").text = L("blm.filter.tag_clear", "Clear selected tag(s)");
             rootVisualElement.Q<Button>("RefreshDbButton").text = L("blm.reload_db", "ReloadDB");
@@ -2488,6 +2891,97 @@ namespace com.amari_noa.blm_integration_core.editor
             field.index = oldIndex;
         }
 
+        private static int LoadDropdownIndexFromEditorPrefs(string editorPrefsKey, int defaultIndex, int choiceCount)
+        {
+            if (choiceCount <= 0)
+            {
+                return -1;
+            }
+
+            var normalizedDefaultIndex = NormalizeDropdownIndex(defaultIndex, choiceCount, 0);
+            var hasStoredSetting = EditorPrefs.HasKey(editorPrefsKey);
+            var storedValue = EditorPrefs.GetInt(editorPrefsKey, normalizedDefaultIndex);
+            var normalized = NormalizeDropdownIndex(storedValue, choiceCount, normalizedDefaultIndex);
+            if (!hasStoredSetting || storedValue != normalized)
+            {
+                EditorPrefs.SetInt(editorPrefsKey, normalized);
+            }
+
+            return normalized;
+        }
+
+        private static void PersistDropdownIndexToEditorPrefs(string editorPrefsKey, int index, int choiceCount, int defaultIndex)
+        {
+            if (choiceCount <= 0)
+            {
+                return;
+            }
+
+            var normalizedDefaultIndex = NormalizeDropdownIndex(defaultIndex, choiceCount, 0);
+            var normalized = NormalizeDropdownIndex(index, choiceCount, normalizedDefaultIndex);
+            EditorPrefs.SetInt(editorPrefsKey, normalized);
+        }
+
+        private static int NormalizeDropdownIndex(int index, int choiceCount, int defaultIndex)
+        {
+            if (choiceCount <= 0)
+            {
+                return -1;
+            }
+
+            var normalizedDefaultIndex = Mathf.Clamp(defaultIndex, 0, choiceCount - 1);
+            if (index < 0 || index >= choiceCount)
+            {
+                return normalizedDefaultIndex;
+            }
+
+            return index;
+        }
+
+        private static int LoadPageSizeFromEditorPrefs()
+        {
+            var defaultPageSize = GetDefaultPageSize();
+            var hasStoredSetting = EditorPrefs.HasKey(BlmConstants.PageSizeEditorPrefsKey);
+            var storedValue = EditorPrefs.GetInt(BlmConstants.PageSizeEditorPrefsKey, defaultPageSize);
+            var normalized = NormalizePageSize(storedValue);
+            if (!hasStoredSetting || storedValue != normalized)
+            {
+                EditorPrefs.SetInt(BlmConstants.PageSizeEditorPrefsKey, normalized);
+            }
+
+            return normalized;
+        }
+
+        private static void PersistPageSizeToEditorPrefs(int pageSize)
+        {
+            EditorPrefs.SetInt(BlmConstants.PageSizeEditorPrefsKey, NormalizePageSize(pageSize));
+        }
+
+        private static int NormalizePageSize(int pageSize)
+        {
+            if (BlmConstants.PageSizes != null && BlmConstants.PageSizes.Contains(pageSize))
+            {
+                return pageSize;
+            }
+
+            return GetDefaultPageSize();
+        }
+
+        private static int GetDefaultPageSize()
+        {
+            if (BlmConstants.PageSizes == null || BlmConstants.PageSizes.Length == 0)
+            {
+                return Math.Max(1, BlmConstants.DefaultPageSize);
+            }
+
+            if (BlmConstants.PageSizes.Contains(BlmConstants.DefaultPageSize))
+            {
+                return BlmConstants.DefaultPageSize;
+            }
+
+            return BlmConstants.PageSizes[0];
+        }
+
         private static int Levenshtein(string a, string b)
         {
             if (string.IsNullOrEmpty(a)) return string.IsNullOrEmpty(b) ? 0 : b.Length;
@@ -2539,27 +3033,43 @@ namespace com.amari_noa.blm_integration_core.editor
             All = 2
         }
 
+        private enum FilterCandidateSortMode
+        {
+            NameAscending = 0,
+            CountDescending = 1
+        }
+
+        private enum DetailSectionSelectionState
+        {
+            Off = 0,
+            Mixed = 1,
+            On = 2
+        }
+
         private readonly struct DetailFileListEntry
         {
             public bool IsSectionHeader { get; }
             public string DisplayText { get; }
+            public string SectionExtension { get; }
+            public bool CanToggleSectionSelection => IsSectionHeader && !string.IsNullOrWhiteSpace(SectionExtension);
             public BlmFileRecord File { get; }
 
-            private DetailFileListEntry(bool isSectionHeader, string displayText, BlmFileRecord file)
+            private DetailFileListEntry(bool isSectionHeader, string displayText, string sectionExtension, BlmFileRecord file)
             {
                 IsSectionHeader = isSectionHeader;
                 DisplayText = displayText;
+                SectionExtension = sectionExtension ?? string.Empty;
                 File = file;
             }
 
-            public static DetailFileListEntry CreateSection(string displayText)
+            public static DetailFileListEntry CreateSection(string displayText, string sectionExtension = "")
             {
-                return new DetailFileListEntry(true, displayText ?? string.Empty, null);
+                return new DetailFileListEntry(true, displayText ?? string.Empty, sectionExtension, null);
             }
 
             public static DetailFileListEntry CreateFile(BlmFileRecord file)
             {
-                return new DetailFileListEntry(false, string.Empty, file);
+                return new DetailFileListEntry(false, string.Empty, string.Empty, file);
             }
         }
 
