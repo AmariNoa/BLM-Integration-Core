@@ -39,10 +39,16 @@ namespace com.amari_noa.blm_integration_core.editor
                 return;
             }
 
-            MaxEntries = GetClampedMaxEntries(
-                EditorPrefs.GetInt(
-                    BlmConstants.ThumbnailCacheEditorPrefsKey,
-                    BlmConstants.ThumbnailMemoryCacheMaxEntriesDefault));
+            var hasStoredSetting = EditorPrefs.HasKey(BlmConstants.ThumbnailCacheEditorPrefsKey);
+            var storedValue = EditorPrefs.GetInt(
+                BlmConstants.ThumbnailCacheEditorPrefsKey,
+                BlmConstants.ThumbnailMemoryCacheMaxEntriesDefault);
+            MaxEntries = GetClampedMaxEntries(storedValue);
+            if (!hasStoredSetting || storedValue != MaxEntries)
+            {
+                EditorPrefs.SetInt(BlmConstants.ThumbnailCacheEditorPrefsKey, MaxEntries);
+            }
+
             _settingsLoaded = true;
             TrimMemoryCacheIfNeeded();
         }
@@ -473,10 +479,14 @@ namespace com.amari_noa.blm_integration_core.editor
 
         private int GetClampedMaxEntries(int requested)
         {
-            return Mathf.Clamp(
-                requested,
-                BlmConstants.ThumbnailMemoryCacheMaxEntriesMin,
-                BlmConstants.ThumbnailMemoryCacheMaxEntriesMax);
+            var min = BlmConstants.ThumbnailMemoryCacheMaxEntriesMin;
+            var max = BlmConstants.ThumbnailMemoryCacheMaxEntriesMax;
+            if (min > max)
+            {
+                min = max;
+            }
+
+            return Mathf.Clamp(requested, min, max);
         }
 
         private void AddTextureToCache(string key, Texture2D texture)

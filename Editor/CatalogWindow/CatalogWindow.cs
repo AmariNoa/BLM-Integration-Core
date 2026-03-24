@@ -347,6 +347,7 @@ namespace com.amari_noa.blm_integration_core.editor
 
             SyncSelectedItemsFilterMode();
             SyncEditorLanguageDropdownChoices();
+            _thumbnailCacheMaxEntriesField.isDelayed = true;
             _thumbnailCacheMaxEntriesField.SetValueWithoutNotify(_thumbnailCacheService.MaxEntries);
             _searchField.value = string.Empty;
             _searchField.pickingMode = PickingMode.Position;
