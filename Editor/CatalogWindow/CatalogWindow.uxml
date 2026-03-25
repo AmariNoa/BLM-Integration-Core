@@ -137,7 +137,4 @@
             </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>
-    <ui:VisualElement name="LoadingOverlay" style="position: absolute; left: 0; top: 0; right: 0; bottom: 0; display: none; justify-content: center; align-items: center; background-color: rgba(0, 0, 0, 0.35);">
-        <ui:Label tabindex="-1" text="Loading..." parse-escape-sequences="true" display-tooltip-when-elided="true" name="LoadingLabel" style="-unity-text-align: middle-center;" />
-    </ui:VisualElement>
 </ui:UXML>

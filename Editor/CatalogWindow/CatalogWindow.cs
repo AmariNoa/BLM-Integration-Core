@@ -77,8 +77,6 @@ namespace com.amari_noa.blm_integration_core.editor
         private Label _activeFilterCountLabel;
         private Label _filteredProductCountLabel;
         private Label _listModeEmptyStateLabel;
-        private VisualElement _contentRoot;
-        private VisualElement _loadingOverlay;
 
         private BlmItemRecord _detailItem;
         private List<BlmFileRecord> _detailFiles = new List<BlmFileRecord>();
@@ -309,8 +307,6 @@ namespace com.amari_noa.blm_integration_core.editor
         private void BindUi()
         {
             _displayModeField = rootVisualElement.Q<DropdownField>("DisplayModeField");
-            _contentRoot = rootVisualElement.childCount > 0 ? rootVisualElement[0] : null;
-            _loadingOverlay = rootVisualElement.Q<VisualElement>("LoadingOverlay");
             _listSelectorField = rootVisualElement.Q<DropdownField>("ListSelectorField");
             _sortKeyField = rootVisualElement.Q<DropdownField>("SortKeyField");
             _sortOrderField = rootVisualElement.Q<DropdownField>("SortOrderField");
@@ -401,7 +397,6 @@ namespace com.amari_noa.blm_integration_core.editor
             _shopSearchField.pickingMode = PickingMode.Position;
             _tagSearchField.value = string.Empty;
             _tagSearchField.pickingMode = PickingMode.Position;
-            _loadingOverlay.style.display = DisplayStyle.None;
             _openFolderPathButton?.SetEnabled(false);
             if (_selectedProductsScrollView != null)
             {
@@ -937,7 +932,6 @@ namespace com.amari_noa.blm_integration_core.editor
         {
             var totalStopwatch = System.Diagnostics.Stopwatch.StartNew();
             PerfLog("ReloadDb start");
-            SetLoading(true);
 
             var clearResolverStopwatch = System.Diagnostics.Stopwatch.StartNew();
             if (forceClearCaches)
@@ -980,7 +974,6 @@ namespace com.amari_noa.blm_integration_core.editor
             PerfLog(
                 "ReloadDb filter caches invalidated.");
             ApplyFilter(true);
-            SetLoading(false);
             rebuildUiStopwatch.Stop();
             totalStopwatch.Stop();
             PerfLog(
@@ -3442,7 +3435,6 @@ namespace com.amari_noa.blm_integration_core.editor
             rootVisualElement.Q<Button>("CancelButton").text = L("blm.button.cancel", "Cancel");
             _confirmButton.text = L("blm.button.import", "Import");
             _detailProductListLabel.text = L("blm.detail.product_files", "Product file(s)");
-            rootVisualElement.Q<Label>("LoadingLabel").text = L("blm.loading", "Loading...");
             _listModeEmptyStateLabel.text = L("blm.list.empty", "No list is available.");
             UpdateImportedStateLabel(_detailItem);
 
@@ -3508,18 +3500,6 @@ namespace com.amari_noa.blm_integration_core.editor
             }
 
             _editorLanguageDropdownField.SetValueWithoutNotify(currentLanguageCode);
-        }
-        private void SetLoading(bool loading)
-        {
-            if (_contentRoot != null)
-            {
-                _contentRoot.SetEnabled(!loading);
-            }
-
-            if (_loadingOverlay != null)
-            {
-                _loadingOverlay.style.display = loading ? DisplayStyle.Flex : DisplayStyle.None;
-            }
         }
 
         private void WithSuppressedUiCallbacks(Action action)
