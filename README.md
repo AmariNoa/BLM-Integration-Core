@@ -22,7 +22,7 @@
 
 ## BOOTH Library ManagerおよびBOOTH関連データの取り扱い
 
-- 本ツールは、BOOTH Library ManagerとBOOTHの利用規約、およびBOOTHのスクレイピングガイドラインに従って開発しています。
+- 本パッケージは、BOOTH Library ManagerとBOOTHの利用規約、およびBOOTHのスクレイピングガイドラインに従って開発しています。
 - データの取得は、一般的なデータベースツール(例: DB Browser for SQLite)で確認できる範囲に限り、ローカルデータベースからデータを読み取ります。
 - BOOTH Library Manager本体のリバースエンジニアリングや改造は行っていません。
 - 実用上必要な範囲において、BOOTHのサーバーから商品のサムネイルファイルをダウンロードし、ローカルにキャッシュすることで、BOOTHサーバーへのアクセス負荷を軽減しています。
@@ -52,7 +52,7 @@ However, if BOOTH or pixiv requests suspension of publication, publication will 
 
 ## Handling of BOOTH Library Manager and BOOTH-Related Data
 
-- This tool is developed in accordance with the terms of use of BOOTH Library Manager and BOOTH, as well as BOOTH's scraping guidelines.
+- This package is developed in accordance with the terms of use of BOOTH Library Manager and BOOTH, as well as BOOTH's scraping guidelines.
 - Data acquisition is limited to the scope that can be checked with general database tools (e.g., DB Browser for SQLite), and data is read from the local database.
 - We do not reverse engineer or modify BOOTH Library Manager itself.
 - Within the practically necessary scope, product thumbnail files are downloaded from BOOTH servers and cached locally, reducing access load on BOOTH servers.

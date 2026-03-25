@@ -29,6 +29,9 @@ namespace com.amari_noa.blm_integration_core.editor
         private readonly List<string> _selectedOrder = new List<string>();
         private readonly HashSet<string> _selectedShops = new HashSet<string>(StringComparer.Ordinal);
         private readonly HashSet<string> _selectedTags = new HashSet<string>(StringComparer.Ordinal);
+        private readonly HashSet<string> _collapsedDetailFolderKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> _collapsedSelectedFolderKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> _collapsedSelectedProductKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private readonly List<string> _categoryValues = new List<string>();
         private readonly List<string> _subCategoryValues = new List<string>();
         private readonly List<ShopEntry> _allShops = new List<ShopEntry>();
@@ -515,9 +518,13 @@ namespace com.amari_noa.blm_integration_core.editor
                 var row = new VisualElement();
                 row.AddToClassList("blm-file-row");
                 var toggle = new Toggle { name = "Toggle" };
+                toggle.AddToClassList("blm-file-row-select-toggle");
+                var folderFoldout = new Foldout { name = "FolderFoldout" };
+                folderFoldout.AddToClassList("blm-file-row-folder-foldout");
                 var label = new Label { name = "Label" };
                 label.AddToClassList("blm-file-row-label");
                 row.Add(toggle);
+                row.Add(folderFoldout);
                 row.Add(label);
                 toggle.RegisterValueChangedCallback(evt =>
                 {
@@ -541,6 +548,25 @@ namespace com.amari_noa.blm_integration_core.editor
                         _detailFileListView.Rebuild();
                         RebuildSelectedPanel();
                         UpdateConfirmButtonState();
+                        return;
+                    }
+
+                    if (toggle.userData is IReadOnlyList<BlmFileRecord> folderFiles)
+                    {
+                        SetFolderFilesSelection(folderFiles, evt.newValue);
+                        _detailFileListView.Rebuild();
+                        RebuildSelectedPanel();
+                        UpdateConfirmButtonState();
+                    }
+                });
+                folderFoldout.RegisterValueChangedCallback(evt =>
+                {
+                    if (folderFoldout.userData is string folderKey)
+                    {
+                        if (IsDetailFolderExpanded(folderKey) != evt.newValue)
+                        {
+                            ToggleDetailFolderExpanded(folderKey);
+                        }
                     }
                 });
                 return row;
@@ -549,8 +575,9 @@ namespace com.amari_noa.blm_integration_core.editor
             {
                 var row = (VisualElement)element;
                 var toggle = row.Q<Toggle>("Toggle");
+                var folderFoldout = row.Q<Foldout>("FolderFoldout");
                 var label = row.Q<Label>("Label");
-                if (toggle == null || label == null)
+                if (toggle == null || label == null || folderFoldout == null)
                 {
                     return;
                 }
@@ -560,10 +587,16 @@ namespace com.amari_noa.blm_integration_core.editor
                     row.RemoveFromClassList("blm-file-row-section");
                     row.RemoveFromClassList("blm-file-row-section-with-toggle");
                     label.RemoveFromClassList("blm-file-row-section-label");
+                    row.style.paddingLeft = 0f;
                     toggle.style.display = DisplayStyle.None;
                     toggle.userData = null;
                     toggle.showMixedValue = false;
                     toggle.SetValueWithoutNotify(false);
+                    folderFoldout.style.display = DisplayStyle.None;
+                    folderFoldout.userData = null;
+                    folderFoldout.text = string.Empty;
+                    folderFoldout.SetValueWithoutNotify(false);
+                    label.style.display = DisplayStyle.Flex;
                     label.text = string.Empty;
                     return;
                 }
@@ -573,6 +606,12 @@ namespace com.amari_noa.blm_integration_core.editor
                 {
                     row.AddToClassList("blm-file-row-section");
                     label.AddToClassList("blm-file-row-section-label");
+                    row.style.paddingLeft = 0f;
+                    folderFoldout.style.display = DisplayStyle.None;
+                    folderFoldout.userData = null;
+                    folderFoldout.text = string.Empty;
+                    folderFoldout.SetValueWithoutNotify(false);
+                    label.style.display = DisplayStyle.Flex;
                     if (entry.CanToggleSectionSelection)
                     {
                         row.AddToClassList("blm-file-row-section-with-toggle");
@@ -596,12 +635,31 @@ namespace com.amari_noa.blm_integration_core.editor
                 row.RemoveFromClassList("blm-file-row-section");
                 row.RemoveFromClassList("blm-file-row-section-with-toggle");
                 label.RemoveFromClassList("blm-file-row-section-label");
+                row.style.paddingLeft = entry.Depth * 14f;
                 toggle.style.display = DisplayStyle.Flex;
+                if (entry.IsFolder)
+                {
+                    toggle.userData = entry.FolderFiles;
+                    ApplyDetailFolderToggleState(toggle, entry.FolderFiles);
+                    folderFoldout.style.display = DisplayStyle.Flex;
+                    folderFoldout.userData = entry.FolderKey;
+                    folderFoldout.text = entry.DisplayText;
+                    folderFoldout.SetValueWithoutNotify(IsDetailFolderExpanded(entry.FolderKey));
+                    label.style.display = DisplayStyle.None;
+                    label.text = string.Empty;
+                    return;
+                }
+
+                folderFoldout.style.display = DisplayStyle.None;
+                folderFoldout.userData = null;
+                folderFoldout.text = string.Empty;
+                folderFoldout.SetValueWithoutNotify(false);
                 toggle.showMixedValue = false;
                 var file = entry.File;
                 toggle.userData = file;
                 toggle.SetValueWithoutNotify(file != null && IsSelected(_detailItem?.ProductId, file.FullPath));
-                label.text = BuildFileDisplayName(_detailItem, file, _detailDuplicateFileNames);
+                label.style.display = DisplayStyle.Flex;
+                label.text = entry.DisplayText;
             };
             _detailFileListView.selectionType = SelectionType.None;
             _detailFileListView.virtualizationMethod = CollectionVirtualizationMethod.DynamicHeight;
@@ -1727,16 +1785,28 @@ namespace com.amari_noa.blm_integration_core.editor
             _detailFolderPathLabel.text = item.RootFolderPath;
             UpdateImportedStateLabel(item);
             _openFolderPathButton?.SetEnabled(!string.IsNullOrWhiteSpace(item.RootFolderPath) && Directory.Exists(item.RootFolderPath));
-            _detailFiles = item.Files.OrderBy(f => ExtensionPriority(f.FileExtension)).ThenBy(f => f.FileName, StringComparer.OrdinalIgnoreCase).ToList();
+            _detailFiles = (item.Files ?? new List<BlmFileRecord>())
+                .Where(file => file != null)
+                .ToList();
             _detailDuplicateFileNames = BuildDuplicateFileNameSet(_detailFiles);
-            _detailFileListEntries = BuildDetailFileListEntries(_detailFiles);
-            _detailFileListView.itemsSource = _detailFileListEntries;
-            _detailFileListView.Rebuild();
+            RefreshDetailFileListEntries();
             _ = _thumbnailCacheService.GetTextureAsync(item).ContinueWith(task =>
             {
                 if (!task.IsCompletedSuccessfully || task.Result == null) return;
                 EditorApplication.delayCall += () => _detailThumbnailImage.style.backgroundImage = new StyleBackground(task.Result);
             });
+        }
+
+        private void RefreshDetailFileListEntries()
+        {
+            if (_detailFileListView == null)
+            {
+                return;
+            }
+
+            _detailFileListEntries = BuildDetailFileListEntries(_detailItem, _detailFiles, _detailDuplicateFileNames);
+            _detailFileListView.itemsSource = _detailFileListEntries;
+            _detailFileListView.Rebuild();
         }
 
         private void EnsureItemFilesLoaded(BlmItemRecord item)
@@ -1912,6 +1982,58 @@ namespace com.amari_noa.blm_integration_core.editor
             }
         }
 
+        private void SetFilesSelection(BlmItemRecord item, IEnumerable<BlmFileRecord> files, bool selected)
+        {
+            if (item == null || files == null)
+            {
+                return;
+            }
+
+            foreach (var file in files)
+            {
+                if (file == null || string.IsNullOrWhiteSpace(file.FullPath))
+                {
+                    continue;
+                }
+
+                SetSelected(item, file.FullPath, selected);
+            }
+        }
+
+        private void SetFolderFilesSelection(IEnumerable<BlmFileRecord> folderFiles, bool selected)
+        {
+            SetFilesSelection(_detailItem, folderFiles, selected);
+        }
+
+        private DetailSectionSelectionState GetFileSelectionState(string productId, IEnumerable<BlmFileRecord> files)
+        {
+            if (string.IsNullOrWhiteSpace(productId) || files == null)
+            {
+                return DetailSectionSelectionState.Off;
+            }
+
+            var fileList = files
+                .Where(file => file != null && !string.IsNullOrWhiteSpace(file.FullPath))
+                .ToList();
+            if (fileList.Count == 0)
+            {
+                return DetailSectionSelectionState.Off;
+            }
+
+            var selectedCount = fileList.Count(file => IsSelected(productId, file.FullPath));
+            if (selectedCount <= 0)
+            {
+                return DetailSectionSelectionState.Off;
+            }
+
+            if (selectedCount >= fileList.Count)
+            {
+                return DetailSectionSelectionState.On;
+            }
+
+            return DetailSectionSelectionState.Mixed;
+        }
+
         private DetailSectionSelectionState GetDetailSectionSelectionState(string normalizedExtension)
         {
             if (_detailItem == null || string.IsNullOrWhiteSpace(normalizedExtension))
@@ -1943,6 +2065,11 @@ namespace com.amari_noa.blm_integration_core.editor
             return DetailSectionSelectionState.Mixed;
         }
 
+        private DetailSectionSelectionState GetDetailFolderSelectionState(IEnumerable<BlmFileRecord> folderFiles)
+        {
+            return GetFileSelectionState(_detailItem?.ProductId, folderFiles);
+        }
+
         private void ApplyDetailSectionToggleState(Toggle toggle, string normalizedExtension)
         {
             if (toggle == null)
@@ -1967,6 +2094,50 @@ namespace com.amari_noa.blm_integration_core.editor
             }
         }
 
+        private void ApplyDetailFolderToggleState(Toggle toggle, IEnumerable<BlmFileRecord> folderFiles)
+        {
+            if (toggle == null)
+            {
+                return;
+            }
+
+            var state = GetFileSelectionState(_detailItem?.ProductId, folderFiles);
+            toggle.showMixedValue = false;
+            switch (state)
+            {
+                case DetailSectionSelectionState.On:
+                    toggle.SetValueWithoutNotify(true);
+                    break;
+                case DetailSectionSelectionState.Mixed:
+                    toggle.SetValueWithoutNotify(false);
+                    toggle.showMixedValue = true;
+                    break;
+                default:
+                    toggle.SetValueWithoutNotify(false);
+                    break;
+            }
+        }
+
+        private void ToggleDetailFolderExpanded(string folderKey)
+        {
+            if (string.IsNullOrWhiteSpace(folderKey))
+            {
+                return;
+            }
+
+            if (!_collapsedDetailFolderKeys.Remove(folderKey))
+            {
+                _collapsedDetailFolderKeys.Add(folderKey);
+            }
+
+            RefreshDetailFileListEntries();
+        }
+
+        private bool IsDetailFolderExpanded(string folderKey)
+        {
+            return string.IsNullOrWhiteSpace(folderKey) || !_collapsedDetailFolderKeys.Contains(folderKey);
+        }
+
         private void ClearAllSelectedFiles()
         {
             if (_selectedByProduct.Count == 0 && _selectedOrder.Count == 0)
@@ -1984,6 +2155,11 @@ namespace com.amari_noa.blm_integration_core.editor
 
         private void RebuildSelectedPanel()
         {
+            if (_selectedProductsScrollView == null)
+            {
+                return;
+            }
+
             _selectedProductsScrollView.Clear();
             foreach (var productId in _selectedOrder.ToList())
             {
@@ -2001,11 +2177,18 @@ namespace com.amari_noa.blm_integration_core.editor
                 {
                     continue;
                 }
-                var duplicateFileNames = BuildDuplicateFileNameSet(visibleFiles);
+                var entries = BuildSelectedPanelFileListEntries(item, visibleFiles);
+                if (entries.Count == 0)
+                {
+                    continue;
+                }
 
                 var fold = new Foldout { text = $"{item.ProductName} / {item.ShopName}" };
                 fold.AddToClassList("blm-selected-product-foldout");
                 fold.style.minWidth = 0f;
+                var productFoldoutKey = item.ProductId ?? string.Empty;
+                fold.SetValueWithoutNotify(IsSelectedProductExpanded(productFoldoutKey));
+                fold.RegisterValueChangedCallback(evt => SetSelectedProductExpanded(productFoldoutKey, evt.newValue));
                 var foldToggle = fold.Q<Toggle>();
                 if (foldToggle != null)
                 {
@@ -2016,30 +2199,12 @@ namespace com.amari_noa.blm_integration_core.editor
                     foldTitleLabel?.AddToClassList("blm-selected-product-foldout-title");
                 }
 
-                foreach (var file in visibleFiles)
+                foreach (var entry in entries)
                 {
-                    var row = new VisualElement();
-                    row.AddToClassList("blm-selected-file-row");
-                    row.style.minWidth = 0f;
-                    var toggle = new Toggle();
-                    toggle.userData = file;
-                    toggle.SetValueWithoutNotify(selected.Contains(file.FullPath));
-                    toggle.RegisterValueChangedCallback(evt =>
-                    {
-                        if (toggle.userData is BlmFileRecord rf)
-                        {
-                            SetSelected(item, rf.FullPath, evt.newValue);
-                            RebuildSelectedPanel();
-                            if (_detailItem != null && _detailItem.ProductId == item.ProductId) _detailFileListView.Rebuild();
-                            UpdateConfirmButtonState();
-                        }
-                    });
-                    var label = new Label(BuildFileDisplayName(item, file, duplicateFileNames));
-                    label.AddToClassList("blm-selected-file-row-label");
-                    row.Add(toggle);
-                    row.Add(label);
+                    var row = BuildSelectedPanelRow(item, visibleFiles, entry);
                     fold.Add(row);
                 }
+
                 _selectedProductsScrollView.Add(fold);
             }
         }
@@ -2051,22 +2216,293 @@ namespace com.amari_noa.blm_integration_core.editor
                 return new List<BlmFileRecord>();
             }
 
-            var orderedFiles = item.Files
-                .OrderBy(f => ExtensionPriority(f.FileExtension))
-                .ThenBy(f => f.FileName, StringComparer.OrdinalIgnoreCase);
-
+            List<BlmFileRecord> filteredFiles;
             switch (_selectedItemsFilterMode)
             {
                 case SelectedItemsFilterMode.SelectedOnly:
-                    return orderedFiles
+                    filteredFiles = item.Files
                         .Where(file => selected.Contains(file.FullPath))
                         .ToList();
+                    break;
                 case SelectedItemsFilterMode.All:
-                    return orderedFiles.ToList();
+                    filteredFiles = item.Files.ToList();
+                    break;
                 default:
-                    return orderedFiles
+                    filteredFiles = item.Files
                         .Where(file => selected.Contains(file.FullPath) || ExtensionPriority(file.FileExtension) != int.MaxValue)
                         .ToList();
+                    break;
+            }
+
+            var duplicateFileNames = BuildDuplicateFileNameSet(filteredFiles);
+            return filteredFiles
+                .OrderBy(file => BuildFileSortText(item, file, duplicateFileNames), StringComparer.OrdinalIgnoreCase)
+                .ThenBy(file => BuildFileSortText(item, file, duplicateFileNames), StringComparer.Ordinal)
+                .ThenBy(file => file.FullPath, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        private VisualElement BuildSelectedPanelRow(
+            BlmItemRecord item,
+            IReadOnlyList<BlmFileRecord> visibleFiles,
+            DetailFileListEntry entry)
+        {
+            var row = new VisualElement();
+            row.AddToClassList("blm-file-row");
+            row.style.minWidth = 0f;
+
+            var toggle = new Toggle();
+            toggle.AddToClassList("blm-file-row-select-toggle");
+            var folderFoldout = new Foldout();
+            folderFoldout.AddToClassList("blm-file-row-folder-foldout");
+            var label = new Label();
+            label.AddToClassList("blm-file-row-label");
+
+            row.Add(toggle);
+            row.Add(folderFoldout);
+            row.Add(label);
+
+            if (entry.IsSectionHeader)
+            {
+                row.AddToClassList("blm-file-row-section");
+                label.AddToClassList("blm-file-row-section-label");
+                row.style.paddingLeft = 0f;
+                folderFoldout.style.display = DisplayStyle.None;
+                folderFoldout.userData = null;
+                folderFoldout.text = string.Empty;
+                folderFoldout.SetValueWithoutNotify(false);
+                label.style.display = DisplayStyle.Flex;
+
+                if (entry.CanToggleSectionSelection)
+                {
+                    var sectionFiles = (visibleFiles ?? Array.Empty<BlmFileRecord>())
+                        .Where(file => file != null
+                                       && string.Equals(
+                                           NormalizeExtension(file.FileExtension),
+                                           entry.SectionExtension,
+                                           StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+                    row.AddToClassList("blm-file-row-section-with-toggle");
+                    toggle.style.display = DisplayStyle.Flex;
+                    toggle.userData = sectionFiles;
+                    ApplySelectedPanelToggleState(toggle, item?.ProductId, sectionFiles);
+                    toggle.RegisterValueChangedCallback(evt =>
+                    {
+                        if (toggle.userData is IReadOnlyList<BlmFileRecord> files)
+                        {
+                            SetFilesSelection(item, files, evt.newValue);
+                            RefreshAfterSelectedPanelSelectionChanged(item);
+                        }
+                    });
+                }
+                else
+                {
+                    toggle.style.display = DisplayStyle.None;
+                    toggle.userData = null;
+                    toggle.showMixedValue = false;
+                    toggle.SetValueWithoutNotify(false);
+                }
+
+                label.text = entry.DisplayText;
+                return row;
+            }
+
+            row.style.paddingLeft = entry.Depth * 14f;
+            toggle.style.display = DisplayStyle.Flex;
+            if (entry.IsFolder)
+            {
+                toggle.userData = entry.FolderFiles;
+                ApplySelectedPanelToggleState(toggle, item?.ProductId, entry.FolderFiles);
+                toggle.RegisterValueChangedCallback(evt =>
+                {
+                    if (toggle.userData is IReadOnlyList<BlmFileRecord> files)
+                    {
+                        SetFilesSelection(item, files, evt.newValue);
+                        RefreshAfterSelectedPanelSelectionChanged(item);
+                    }
+                });
+
+                folderFoldout.style.display = DisplayStyle.Flex;
+                folderFoldout.userData = entry.FolderKey;
+                folderFoldout.text = entry.DisplayText;
+                folderFoldout.SetValueWithoutNotify(IsSelectedFolderExpanded(entry.FolderKey));
+                folderFoldout.RegisterValueChangedCallback(evt =>
+                {
+                    if (folderFoldout.userData is string folderKey && IsSelectedFolderExpanded(folderKey) != evt.newValue)
+                    {
+                        ToggleSelectedFolderExpanded(folderKey);
+                    }
+                });
+
+                label.style.display = DisplayStyle.None;
+                label.text = string.Empty;
+                return row;
+            }
+
+            folderFoldout.style.display = DisplayStyle.None;
+            folderFoldout.userData = null;
+            folderFoldout.text = string.Empty;
+            folderFoldout.SetValueWithoutNotify(false);
+
+            toggle.showMixedValue = false;
+            var fileEntry = entry.File;
+            toggle.userData = fileEntry;
+            toggle.SetValueWithoutNotify(fileEntry != null && IsSelected(item?.ProductId, fileEntry.FullPath));
+            toggle.RegisterValueChangedCallback(evt =>
+            {
+                if (toggle.userData is BlmFileRecord file)
+                {
+                    SetSelected(item, file.FullPath, evt.newValue);
+                    RefreshAfterSelectedPanelSelectionChanged(item);
+                }
+            });
+
+            label.style.display = DisplayStyle.Flex;
+            label.text = entry.DisplayText;
+            return row;
+        }
+
+        private void RefreshAfterSelectedPanelSelectionChanged(BlmItemRecord item)
+        {
+            RebuildSelectedPanel();
+            if (_detailItem != null && item != null && _detailItem.ProductId == item.ProductId)
+            {
+                _detailFileListView?.Rebuild();
+            }
+
+            UpdateConfirmButtonState();
+        }
+
+        private List<DetailFileListEntry> BuildSelectedPanelFileListEntries(
+            BlmItemRecord item,
+            IReadOnlyList<BlmFileRecord> files)
+        {
+            var entries = new List<DetailFileListEntry>();
+            if (files == null || files.Count == 0)
+            {
+                return entries;
+            }
+
+            var normalizedFiles = files
+                .Where(file => file != null)
+                .ToList();
+            if (normalizedFiles.Count == 0)
+            {
+                return entries;
+            }
+
+            var root = BuildDetailFolderTree(item, normalizedFiles);
+            PopulateDetailFolderDescendants(root);
+            const string sectionKey = "__all__";
+            AppendSelectedPanelFolderEntries(entries, item, root, sectionKey, depth: 0);
+            AppendDetailFileEntries(entries, item, root.DirectFiles, depth: 0);
+
+            return entries;
+        }
+
+        private void AppendSelectedPanelFolderEntries(
+            List<DetailFileListEntry> entries,
+            BlmItemRecord item,
+            DetailFolderTreeNode parent,
+            string sectionKey,
+            int depth)
+        {
+            if (entries == null || parent == null || parent.Children == null || parent.Children.Count == 0)
+            {
+                return;
+            }
+
+            var orderedFolders = parent.Children.Values
+                .OrderBy(node => node.Name ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(node => node.Name ?? string.Empty, StringComparer.Ordinal)
+                .ToList();
+
+            foreach (var folder in orderedFolders)
+            {
+                var folderKey = BuildSelectedPanelFolderKey(item?.ProductId, sectionKey, folder.RelativePath);
+                entries.Add(DetailFileListEntry.CreateFolder(
+                    displayText: folder.Name,
+                    folderKey: folderKey,
+                    folderFiles: folder.DescendantFiles,
+                    depth: depth));
+                if (!IsSelectedFolderExpanded(folderKey))
+                {
+                    continue;
+                }
+
+                AppendSelectedPanelFolderEntries(entries, item, folder, sectionKey, depth + 1);
+                AppendDetailFileEntries(entries, item, folder.DirectFiles, depth + 1);
+            }
+        }
+
+        private static string BuildSelectedPanelFolderKey(string productId, string sectionKey, string folderRelativePath)
+        {
+            return $"selected|{BuildDetailFolderKey(productId, sectionKey, folderRelativePath)}";
+        }
+
+        private bool IsSelectedFolderExpanded(string folderKey)
+        {
+            return string.IsNullOrWhiteSpace(folderKey) || !_collapsedSelectedFolderKeys.Contains(folderKey);
+        }
+
+        private void ToggleSelectedFolderExpanded(string folderKey)
+        {
+            if (string.IsNullOrWhiteSpace(folderKey))
+            {
+                return;
+            }
+
+            if (!_collapsedSelectedFolderKeys.Remove(folderKey))
+            {
+                _collapsedSelectedFolderKeys.Add(folderKey);
+            }
+
+            RebuildSelectedPanel();
+        }
+
+        private bool IsSelectedProductExpanded(string productId)
+        {
+            return string.IsNullOrWhiteSpace(productId) || !_collapsedSelectedProductKeys.Contains(productId);
+        }
+
+        private void SetSelectedProductExpanded(string productId, bool expanded)
+        {
+            if (string.IsNullOrWhiteSpace(productId))
+            {
+                return;
+            }
+
+            if (expanded)
+            {
+                _collapsedSelectedProductKeys.Remove(productId);
+            }
+            else
+            {
+                _collapsedSelectedProductKeys.Add(productId);
+            }
+        }
+
+        private void ApplySelectedPanelToggleState(Toggle toggle, string productId, IEnumerable<BlmFileRecord> files)
+        {
+            if (toggle == null)
+            {
+                return;
+            }
+
+            var state = GetFileSelectionState(productId, files);
+            toggle.showMixedValue = false;
+            switch (state)
+            {
+                case DetailSectionSelectionState.On:
+                    toggle.SetValueWithoutNotify(true);
+                    break;
+                case DetailSectionSelectionState.Mixed:
+                    toggle.SetValueWithoutNotify(false);
+                    toggle.showMixedValue = true;
+                    break;
+                default:
+                    toggle.SetValueWithoutNotify(false);
+                    break;
             }
         }
 
@@ -2274,6 +2710,14 @@ namespace com.amari_noa.blm_integration_core.editor
             return string.IsNullOrWhiteSpace(relativePath) ? fileName : relativePath;
         }
 
+        private static string BuildFileSortText(BlmItemRecord item, BlmFileRecord file, HashSet<string> duplicateFileNames)
+        {
+            var displayText = BuildFileDisplayName(item, file, duplicateFileNames);
+            return string.IsNullOrWhiteSpace(displayText)
+                ? (file?.FileName ?? string.Empty)
+                : displayText;
+        }
+
         private static string CollapseRedundantTopLevelDirectory(string rootFolderPath, string relativePath)
         {
             if (string.IsNullOrWhiteSpace(rootFolderPath) || string.IsNullOrWhiteSpace(relativePath))
@@ -2337,8 +2781,12 @@ namespace com.amari_noa.blm_integration_core.editor
             return tags;
         }
 
-        private List<DetailFileListEntry> BuildDetailFileListEntries(IReadOnlyList<BlmFileRecord> files)
+        private List<DetailFileListEntry> BuildDetailFileListEntries(
+            BlmItemRecord item,
+            IReadOnlyList<BlmFileRecord> files,
+            HashSet<string> duplicateFileNames)
         {
+            _ = duplicateFileNames;
             var entries = new List<DetailFileListEntry>();
             if (files == null || files.Count == 0)
             {
@@ -2350,7 +2798,7 @@ namespace com.amari_noa.blm_integration_core.editor
                 .GroupBy(file => NormalizeExtension(file.FileExtension), StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(
                     group => group.Key,
-                    group => group.OrderBy(file => file.FileName, StringComparer.OrdinalIgnoreCase).ToList(),
+                    group => group.ToList(),
                     StringComparer.OrdinalIgnoreCase);
 
             var preferredExtensions = (_context?.PreferredDisplayExtensions ?? new List<string>())
@@ -2367,29 +2815,210 @@ namespace com.amari_noa.blm_integration_core.editor
                 }
 
                 entries.Add(DetailFileListEntry.CreateSection(BuildDetailSectionHeaderText(preferredExtension), preferredExtension));
-                foreach (var file in sectionFiles)
-                {
-                    entries.Add(DetailFileListEntry.CreateFile(file));
-                }
+                AppendDetailSectionTreeEntries(entries, item, preferredExtension, sectionFiles);
 
                 filesByExtension.Remove(preferredExtension);
             }
 
             var otherFiles = filesByExtension.Values
-                .SelectMany(sectionFiles => sectionFiles)
-                .OrderBy(file => NormalizeExtension(file.FileExtension), StringComparer.OrdinalIgnoreCase)
-                .ThenBy(file => file.FileName, StringComparer.OrdinalIgnoreCase)
+                .SelectMany(sectionFiles => sectionFiles ?? Enumerable.Empty<BlmFileRecord>())
+                .Where(file => file != null)
                 .ToList();
             if (otherFiles.Count > 0)
             {
                 entries.Add(DetailFileListEntry.CreateSection(BuildDetailSectionHeaderText(string.Empty)));
-                foreach (var file in otherFiles)
-                {
-                    entries.Add(DetailFileListEntry.CreateFile(file));
-                }
+                AppendDetailSectionTreeEntries(entries, item, string.Empty, otherFiles);
             }
 
             return entries;
+        }
+
+        private void AppendDetailSectionTreeEntries(
+            List<DetailFileListEntry> entries,
+            BlmItemRecord item,
+            string sectionExtension,
+            IReadOnlyList<BlmFileRecord> sectionFiles)
+        {
+            if (entries == null || sectionFiles == null || sectionFiles.Count == 0)
+            {
+                return;
+            }
+
+            var root = BuildDetailFolderTree(item, sectionFiles);
+            PopulateDetailFolderDescendants(root);
+            var sectionKey = NormalizeDetailSectionKey(sectionExtension);
+            AppendDetailFolderEntries(entries, item, root, sectionKey, depth: 0);
+            AppendDetailFileEntries(entries, item, root.DirectFiles, depth: 0);
+        }
+
+        private void AppendDetailFolderEntries(
+            List<DetailFileListEntry> entries,
+            BlmItemRecord item,
+            DetailFolderTreeNode parent,
+            string sectionKey,
+            int depth)
+        {
+            if (entries == null || parent == null || parent.Children == null || parent.Children.Count == 0)
+            {
+                return;
+            }
+
+            var orderedFolders = parent.Children.Values
+                .OrderBy(node => node.Name ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(node => node.Name ?? string.Empty, StringComparer.Ordinal)
+                .ToList();
+
+            foreach (var folder in orderedFolders)
+            {
+                var folderKey = BuildDetailFolderKey(item?.ProductId, sectionKey, folder.RelativePath);
+                entries.Add(DetailFileListEntry.CreateFolder(
+                    displayText: folder.Name,
+                    folderKey: folderKey,
+                    folderFiles: folder.DescendantFiles,
+                    depth: depth));
+                if (!IsDetailFolderExpanded(folderKey))
+                {
+                    continue;
+                }
+
+                AppendDetailFolderEntries(entries, item, folder, sectionKey, depth + 1);
+                AppendDetailFileEntries(entries, item, folder.DirectFiles, depth + 1);
+            }
+        }
+
+        private void AppendDetailFileEntries(
+            List<DetailFileListEntry> entries,
+            BlmItemRecord item,
+            IEnumerable<BlmFileRecord> files,
+            int depth)
+        {
+            if (entries == null || files == null)
+            {
+                return;
+            }
+
+            var orderedFiles = files
+                .Where(file => file != null)
+                .Select(file => new
+                {
+                    File = file,
+                    DisplayText = BuildTreeFileName(item, file)
+                })
+                .OrderBy(entry => entry.DisplayText, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(entry => entry.DisplayText, StringComparer.Ordinal)
+                .ThenBy(entry => entry.File.FullPath ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            foreach (var fileEntry in orderedFiles)
+            {
+                entries.Add(DetailFileListEntry.CreateFile(fileEntry.File, fileEntry.DisplayText, depth));
+            }
+        }
+
+        private static DetailFolderTreeNode BuildDetailFolderTree(BlmItemRecord item, IReadOnlyList<BlmFileRecord> files)
+        {
+            var root = new DetailFolderTreeNode(string.Empty, string.Empty);
+            if (files == null || files.Count == 0)
+            {
+                return root;
+            }
+
+            foreach (var file in files.Where(file => file != null))
+            {
+                var relativePath = BuildNormalizedRelativePath(item?.RootFolderPath, file.FullPath);
+                var normalizedRelativePath = string.IsNullOrWhiteSpace(relativePath)
+                    ? (file.FileName ?? string.Empty)
+                    : relativePath.Replace('\\', '/');
+                var segments = normalizedRelativePath
+                    .Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+                if (segments.Length <= 1)
+                {
+                    root.DirectFiles.Add(file);
+                    continue;
+                }
+
+                var node = root;
+                var pathBuilder = new StringBuilder();
+                for (var i = 0; i < segments.Length - 1; i++)
+                {
+                    var segment = segments[i];
+                    if (string.IsNullOrWhiteSpace(segment))
+                    {
+                        continue;
+                    }
+
+                    if (pathBuilder.Length > 0)
+                    {
+                        pathBuilder.Append('/');
+                    }
+
+                    pathBuilder.Append(segment);
+                    if (!node.Children.TryGetValue(segment, out var child))
+                    {
+                        child = new DetailFolderTreeNode(segment, pathBuilder.ToString());
+                        node.Children[segment] = child;
+                    }
+
+                    node = child;
+                }
+
+                node.DirectFiles.Add(file);
+            }
+
+            return root;
+        }
+
+        private static List<BlmFileRecord> PopulateDetailFolderDescendants(DetailFolderTreeNode node)
+        {
+            var descendants = new List<BlmFileRecord>();
+            if (node == null)
+            {
+                return descendants;
+            }
+
+            descendants.AddRange(node.DirectFiles.Where(file => file != null));
+            foreach (var child in node.Children.Values)
+            {
+                descendants.AddRange(PopulateDetailFolderDescendants(child));
+            }
+
+            node.DescendantFiles = descendants;
+            return descendants;
+        }
+
+        private static string NormalizeDetailSectionKey(string sectionExtension)
+        {
+            return string.IsNullOrWhiteSpace(sectionExtension)
+                ? "__other__"
+                : NormalizeExtension(sectionExtension);
+        }
+
+        private static string BuildDetailFolderKey(string productId, string sectionKey, string folderRelativePath)
+        {
+            var normalizedFolderPath = (folderRelativePath ?? string.Empty).Replace('\\', '/');
+            return $"{productId ?? string.Empty}|{sectionKey ?? string.Empty}|{normalizedFolderPath}";
+        }
+
+        private static string BuildTreeFileName(BlmItemRecord item, BlmFileRecord file)
+        {
+            if (file == null)
+            {
+                return string.Empty;
+            }
+
+            var relativePath = BuildNormalizedRelativePath(item?.RootFolderPath, file.FullPath);
+            var normalized = string.IsNullOrWhiteSpace(relativePath)
+                ? (file.FileName ?? string.Empty)
+                : relativePath.Replace('\\', '/');
+            var lastSlashIndex = normalized.LastIndexOf('/');
+            if (lastSlashIndex >= 0 && lastSlashIndex < normalized.Length - 1)
+            {
+                return normalized[(lastSlashIndex + 1)..];
+            }
+
+            return string.IsNullOrWhiteSpace(normalized)
+                ? (file.FileName ?? string.Empty)
+                : normalized;
         }
 
         private string BuildDetailSectionHeaderText(string normalizedExtension)
@@ -3086,30 +3715,95 @@ namespace com.amari_noa.blm_integration_core.editor
             On = 2
         }
 
+        private sealed class DetailFolderTreeNode
+        {
+            public string Name { get; }
+            public string RelativePath { get; }
+            public Dictionary<string, DetailFolderTreeNode> Children { get; } =
+                new Dictionary<string, DetailFolderTreeNode>(StringComparer.OrdinalIgnoreCase);
+            public List<BlmFileRecord> DirectFiles { get; } = new List<BlmFileRecord>();
+            public IReadOnlyList<BlmFileRecord> DescendantFiles { get; set; } = Array.Empty<BlmFileRecord>();
+
+            public DetailFolderTreeNode(string name, string relativePath)
+            {
+                Name = name ?? string.Empty;
+                RelativePath = relativePath ?? string.Empty;
+            }
+        }
+
         private readonly struct DetailFileListEntry
         {
             public bool IsSectionHeader { get; }
+            public bool IsFolder { get; }
             public string DisplayText { get; }
             public string SectionExtension { get; }
             public bool CanToggleSectionSelection => IsSectionHeader && !string.IsNullOrWhiteSpace(SectionExtension);
             public BlmFileRecord File { get; }
+            public IReadOnlyList<BlmFileRecord> FolderFiles { get; }
+            public string FolderKey { get; }
+            public int Depth { get; }
 
-            private DetailFileListEntry(bool isSectionHeader, string displayText, string sectionExtension, BlmFileRecord file)
+            private DetailFileListEntry(
+                bool isSectionHeader,
+                bool isFolder,
+                string displayText,
+                string sectionExtension,
+                BlmFileRecord file,
+                IReadOnlyList<BlmFileRecord> folderFiles,
+                string folderKey,
+                int depth)
             {
                 IsSectionHeader = isSectionHeader;
-                DisplayText = displayText;
+                IsFolder = isFolder;
+                DisplayText = displayText ?? string.Empty;
                 SectionExtension = sectionExtension ?? string.Empty;
                 File = file;
+                FolderFiles = folderFiles ?? Array.Empty<BlmFileRecord>();
+                FolderKey = folderKey ?? string.Empty;
+                Depth = Math.Max(0, depth);
             }
 
             public static DetailFileListEntry CreateSection(string displayText, string sectionExtension = "")
             {
-                return new DetailFileListEntry(true, displayText ?? string.Empty, sectionExtension, null);
+                return new DetailFileListEntry(
+                    isSectionHeader: true,
+                    isFolder: false,
+                    displayText: displayText ?? string.Empty,
+                    sectionExtension: sectionExtension,
+                    file: null,
+                    folderFiles: Array.Empty<BlmFileRecord>(),
+                    folderKey: string.Empty,
+                    depth: 0);
             }
 
-            public static DetailFileListEntry CreateFile(BlmFileRecord file)
+            public static DetailFileListEntry CreateFolder(
+                string displayText,
+                string folderKey,
+                IReadOnlyList<BlmFileRecord> folderFiles,
+                int depth)
             {
-                return new DetailFileListEntry(false, string.Empty, string.Empty, file);
+                return new DetailFileListEntry(
+                    isSectionHeader: false,
+                    isFolder: true,
+                    displayText: displayText ?? string.Empty,
+                    sectionExtension: string.Empty,
+                    file: null,
+                    folderFiles: folderFiles ?? Array.Empty<BlmFileRecord>(),
+                    folderKey: folderKey ?? string.Empty,
+                    depth: depth);
+            }
+
+            public static DetailFileListEntry CreateFile(BlmFileRecord file, string displayText, int depth)
+            {
+                return new DetailFileListEntry(
+                    isSectionHeader: false,
+                    isFolder: false,
+                    displayText: string.IsNullOrWhiteSpace(displayText) ? (file?.FileName ?? string.Empty) : displayText,
+                    sectionExtension: string.Empty,
+                    file: file,
+                    folderFiles: Array.Empty<BlmFileRecord>(),
+                    folderKey: string.Empty,
+                    depth: depth);
             }
         }
 
