@@ -105,8 +105,8 @@
                             </ui:VisualElement>
                         </ui:VisualElement>
                     </ui:VisualElement>
-                    <ui:VisualElement style="flex-grow: 0; flex-shrink: 0; flex-direction: column-reverse; max-height: 80px; min-height: 80px;">
-                        <ui:Label tabindex="-1" text="Folder path" parse-escape-sequences="true" display-tooltip-when-elided="true" name="DetailFolderPathLabel" style="-unity-text-align: middle-left;" />
+                    <ui:VisualElement style="flex-grow: 0; flex-shrink: 0; flex-direction: column-reverse; max-height: 170px; min-height: 170px;">
+                        <ui:Label tabindex="-1" text="Folder path" parse-escape-sequences="true" display-tooltip-when-elided="true" name="DetailFolderPathLabel" style="-unity-text-align: upper-left; max-height: 120px; min-height: 120px; white-space: normal;" />
                         <ui:Button text="Open folder path" parse-escape-sequences="true" display-tooltip-when-elided="true" name="OpenFolderPathButton" />
                     </ui:VisualElement>
                 </ui:VisualElement>

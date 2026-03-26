@@ -4,17 +4,15 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using com.amari_noa.unitypackage_pipeline_core.editor;
-using UnityEditor;
 using UnityEngine;
 
 namespace com.amari_noa.blm_integration_core.editor
 {
     public sealed class BlmImportProcessor : IBlmImportProcessorGateway, IBlmDestinationAssetPathUpdater
     {
-        private const string ManagedTag = "AMARI_BLM";
-        private const string ProductTagPrefix = "AMARI_BLM_P";
         private readonly object _syncRoot = new object();
         private readonly Dictionary<string, BlmImportRequestItem> _trackedItems = new Dictionary<string, BlmImportRequestItem>(StringComparer.OrdinalIgnoreCase);
+        private readonly BlmImportIndexService _importIndexService = BlmImportIndexService.Shared;
 
         public static BlmImportProcessor Shared { get; } = new BlmImportProcessor();
 
@@ -82,7 +80,6 @@ namespace com.amari_noa.blm_integration_core.editor
                 return;
             }
 
-            EnsureBatchItemTags(request.Items);
             RegisterTrackedItems(request);
             var remainingQueue = request.Items?.ToList() ?? new List<BlmImportRequestItem>();
             RaiseImportQueueUpdated(request.BatchId, remainingQueue);
@@ -108,6 +105,11 @@ namespace com.amari_noa.blm_integration_core.editor
                             break;
                         }
 
+                        _importIndexService.UpdateFromImportedItem(
+                            item,
+                            BlmImportedItemKind.UnityPackage,
+                            destinationWasPreExisting: true,
+                            isSkipped: false);
                         result.SucceededItems.Add(item);
                         RemoveFirstRemainingQueueItem(remainingQueue);
                         RaiseImportQueueUpdated(request.BatchId, remainingQueue);
@@ -133,6 +135,11 @@ namespace com.amari_noa.blm_integration_core.editor
                         item.ProductId,
                         item.SourcePath,
                         destinationPaths);
+                    _importIndexService.UpdateFromImportedItem(
+                        item,
+                        BlmImportedItemKind.NonUnityPackage,
+                        nonUnityResult.DestinationWasPreExisting,
+                        nonUnityResult.IsSkipped);
                     result.SucceededItems.Add(item);
                     RemoveFirstRemainingQueueItem(remainingQueue);
                     RaiseImportQueueUpdated(request.BatchId, remainingQueue);
@@ -154,59 +161,6 @@ namespace com.amari_noa.blm_integration_core.editor
             }
 
             RaiseBatchCompleted(result);
-        }
-
-        private static void EnsureBatchItemTags(IEnumerable<BlmImportRequestItem> items)
-        {
-            if (items == null)
-            {
-                return;
-            }
-
-            foreach (var item in items)
-            {
-                EnsureItemTags(item);
-            }
-        }
-
-        private static void EnsureItemTags(BlmImportRequestItem item)
-        {
-            if (item == null)
-            {
-                return;
-            }
-
-            var normalizedTags = new HashSet<string>(StringComparer.Ordinal);
-            if (item.Tags != null)
-            {
-                foreach (var rawTag in item.Tags)
-                {
-                    var normalizedTag = NormalizeTag(rawTag);
-                    if (!string.IsNullOrWhiteSpace(normalizedTag))
-                    {
-                        normalizedTags.Add(normalizedTag);
-                    }
-                }
-            }
-
-            normalizedTags.Add(ManagedTag);
-
-            var normalizedProductId = item.ProductId?.Trim() ?? string.Empty;
-            if (!string.IsNullOrWhiteSpace(normalizedProductId))
-            {
-                normalizedTags.Add($"{ProductTagPrefix}{normalizedProductId}");
-            }
-
-            item.Tags = normalizedTags
-                .OrderBy(tag => tag, StringComparer.Ordinal)
-                .ToList();
-        }
-
-        private static string NormalizeTag(string rawTag)
-        {
-            return string.IsNullOrWhiteSpace(rawTag)
-                ? string.Empty
-                : rawTag.Trim();
         }
 
         private static void RemoveFirstRemainingQueueItem(List<BlmImportRequestItem> remainingQueue)
@@ -259,7 +213,7 @@ namespace com.amari_noa.blm_integration_core.editor
 
             try
             {
-                pipelineService.Enqueue(new AmariUnityPackageImportRequest(item.SourcePath, item.Tags));
+                pipelineService.Enqueue(new AmariUnityPackageImportRequest(item.SourcePath));
                 pipelineService.StartImport();
 
                 var resultContext = await tcs.Task;
@@ -277,11 +231,6 @@ namespace com.amari_noa.blm_integration_core.editor
                 if (resultContext.ImportStatus != AmariUnityPackagePipelineOperationStatus.Completed)
                 {
                     return UnityPackageImportOutcome.Failed(resultContext.ImportStatus, resultContext.ErrorMessage);
-                }
-
-                if (!TryApplyTagsToAssets(resultContext.ImportedAssets, item.Tags, out var tagError))
-                {
-                    return UnityPackageImportOutcome.Failed(AmariUnityPackagePipelineOperationStatus.Failed, tagError);
                 }
 
                 return UnityPackageImportOutcome.Completed();
@@ -375,71 +324,6 @@ namespace com.amari_noa.blm_integration_core.editor
         private static string GetExtension(string path)
         {
             return (Path.GetExtension(path) ?? string.Empty).ToLowerInvariant();
-        }
-
-        private static bool TryApplyTagsToAssets(
-            IReadOnlyList<string> assetPaths,
-            IReadOnlyList<string> tags,
-            out string error)
-        {
-            error = string.Empty;
-            if (assetPaths == null || assetPaths.Count == 0 || tags == null || tags.Count == 0)
-            {
-                return true;
-            }
-
-            var normalizedTags = tags
-                .Where(tag => !string.IsNullOrWhiteSpace(tag))
-                .Select(tag => tag.Trim())
-                .Distinct(StringComparer.Ordinal)
-                .ToArray();
-            if (normalizedTags.Length == 0)
-            {
-                return true;
-            }
-
-            var labelsChanged = false;
-            foreach (var assetPath in assetPaths
-                         .Where(path => !string.IsNullOrWhiteSpace(path))
-                         .Select(NormalizeAssetPath)
-                         .Distinct(StringComparer.Ordinal))
-            {
-                var targetObject = AssetDatabase.LoadMainAssetAtPath(assetPath);
-                if (targetObject == null)
-                {
-                    continue;
-                }
-
-                try
-                {
-                    var mergedLabels = new HashSet<string>(AssetDatabase.GetLabels(targetObject), StringComparer.Ordinal);
-                    var beforeCount = mergedLabels.Count;
-                    foreach (var tag in normalizedTags)
-                    {
-                        mergedLabels.Add(tag);
-                    }
-
-                    if (mergedLabels.Count == beforeCount)
-                    {
-                        continue;
-                    }
-
-                    AssetDatabase.SetLabels(targetObject, mergedLabels.ToArray());
-                    labelsChanged = true;
-                }
-                catch (Exception ex)
-                {
-                    error = $"Failed to apply tags to \"{assetPath}\": {ex.Message}";
-                    return false;
-                }
-            }
-
-            if (labelsChanged)
-            {
-                AssetDatabase.SaveAssets();
-            }
-
-            return true;
         }
 
         private readonly struct UnityPackageImportOutcome

@@ -31,6 +31,7 @@ namespace com.amari_noa.blm_integration_core.editor
             var isExistingDuplicate = File.Exists(destinationAbsolutePath);
             var isBatchDuplicate = !batchDestinationPaths.Add(destinationAssetPath);
             var isDuplicate = isExistingDuplicate || isBatchDuplicate;
+            var destinationWasPreExisting = isExistingDuplicate;
 
             var shouldOverwrite = false;
             if (isDuplicate)
@@ -38,7 +39,7 @@ namespace com.amari_noa.blm_integration_core.editor
                 var action = DecideDuplicateAction(context, destinationAssetPath);
                 if (action == DuplicateAction.Skip)
                 {
-                    return NonUnityImportResult.Skipped(destinationAssetPath);
+                    return NonUnityImportResult.Skipped(destinationAssetPath, destinationWasPreExisting);
                 }
 
                 shouldOverwrite = true;
@@ -49,63 +50,11 @@ namespace com.amari_noa.blm_integration_core.editor
                 Directory.CreateDirectory(Path.GetDirectoryName(destinationAbsolutePath) ?? string.Empty);
                 File.Copy(item.SourcePath, destinationAbsolutePath, shouldOverwrite);
                 AssetDatabase.ImportAsset(destinationAssetPath, ImportAssetOptions.ForceSynchronousImport | ImportAssetOptions.ForceUpdate);
-                if (!TryApplyTags(destinationAssetPath, item.Tags, out var tagError))
-                {
-                    return NonUnityImportResult.Failed(tagError);
-                }
-                return NonUnityImportResult.Completed(destinationAssetPath);
+                return NonUnityImportResult.Completed(destinationAssetPath, destinationWasPreExisting);
             }
             catch (Exception ex)
             {
                 return NonUnityImportResult.Failed(ex.Message);
-            }
-        }
-
-        private static bool TryApplyTags(string destinationAssetPath, IEnumerable<string> tags, out string error)
-        {
-            error = string.Empty;
-            if (string.IsNullOrWhiteSpace(destinationAssetPath))
-            {
-                return true;
-            }
-
-            var normalizedTags = tags?
-                .Where(tag => !string.IsNullOrWhiteSpace(tag))
-                .Select(tag => tag.Trim())
-                .Distinct(StringComparer.Ordinal)
-                .ToArray() ?? Array.Empty<string>();
-            if (normalizedTags.Length == 0)
-            {
-                return true;
-            }
-
-            try
-            {
-                var targetObject = AssetDatabase.LoadMainAssetAtPath(destinationAssetPath);
-                if (targetObject == null)
-                {
-                    error = $"Imported asset not found for tagging: {destinationAssetPath}";
-                    return false;
-                }
-
-                var mergedLabels = new HashSet<string>(AssetDatabase.GetLabels(targetObject), StringComparer.Ordinal);
-                var beforeCount = mergedLabels.Count;
-                foreach (var tag in normalizedTags)
-                {
-                    mergedLabels.Add(tag);
-                }
-
-                if (mergedLabels.Count != beforeCount)
-                {
-                    AssetDatabase.SetLabels(targetObject, mergedLabels.ToArray());
-                }
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                error = $"Failed to apply tags to \"{destinationAssetPath}\": {ex.Message}";
-                return false;
             }
         }
 
@@ -158,11 +107,15 @@ namespace com.amari_noa.blm_integration_core.editor
             return DuplicateAction.Overwrite;
         }
 
-        private static string BuildDestinationAssetPath(BlmImportRequestItem item)
+        internal static string BuildDestinationAssetPath(
+            string shopName,
+            string productName,
+            string rootFolderPath,
+            string sourcePath)
         {
-            var shop = SanitizePathSegment(item.ShopName);
-            var product = SanitizePathSegment(item.ProductName);
-            var relative = BuildRelativePath(item.RootFolderPath, item.SourcePath);
+            var shop = SanitizePathSegment(shopName);
+            var product = SanitizePathSegment(productName);
+            var relative = BuildRelativePath(rootFolderPath, sourcePath);
             var sanitizedRelative = string.Join(
                 "/",
                 relative
@@ -177,6 +130,15 @@ namespace com.amari_noa.blm_integration_core.editor
             }
 
             return NormalizeAssetPath(destination);
+        }
+
+        private static string BuildDestinationAssetPath(BlmImportRequestItem item)
+        {
+            return BuildDestinationAssetPath(
+                item?.ShopName,
+                item?.ProductName,
+                item?.RootFolderPath,
+                item?.SourcePath);
         }
 
         private static string BuildRelativePath(string rootFolderPath, string sourcePath)
@@ -336,29 +298,36 @@ namespace com.amari_noa.blm_integration_core.editor
             public bool IsSuccess { get; }
             public bool IsSkipped { get; }
             public string DestinationAssetPath { get; }
+            public bool DestinationWasPreExisting { get; }
             public string ErrorMessage { get; }
 
-            private NonUnityImportResult(bool isSuccess, bool isSkipped, string destinationAssetPath, string errorMessage)
+            private NonUnityImportResult(
+                bool isSuccess,
+                bool isSkipped,
+                string destinationAssetPath,
+                bool destinationWasPreExisting,
+                string errorMessage)
             {
                 IsSuccess = isSuccess;
                 IsSkipped = isSkipped;
                 DestinationAssetPath = destinationAssetPath ?? string.Empty;
+                DestinationWasPreExisting = destinationWasPreExisting;
                 ErrorMessage = errorMessage ?? string.Empty;
             }
 
-            public static NonUnityImportResult Completed(string destinationAssetPath)
+            public static NonUnityImportResult Completed(string destinationAssetPath, bool destinationWasPreExisting)
             {
-                return new NonUnityImportResult(true, false, destinationAssetPath, string.Empty);
+                return new NonUnityImportResult(true, false, destinationAssetPath, destinationWasPreExisting, string.Empty);
             }
 
-            public static NonUnityImportResult Skipped(string destinationAssetPath)
+            public static NonUnityImportResult Skipped(string destinationAssetPath, bool destinationWasPreExisting)
             {
-                return new NonUnityImportResult(true, true, destinationAssetPath, string.Empty);
+                return new NonUnityImportResult(true, true, destinationAssetPath, destinationWasPreExisting, string.Empty);
             }
 
             public static NonUnityImportResult Failed(string errorMessage)
             {
-                return new NonUnityImportResult(false, false, string.Empty, errorMessage);
+                return new NonUnityImportResult(false, false, string.Empty, false, errorMessage);
             }
         }
     }

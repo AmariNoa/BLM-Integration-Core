@@ -58,6 +58,10 @@
     min-height: 20px;
 }
 
+.blm-file-row-imported {
+    background-color: rgba(126, 171, 126, 0.16);
+}
+
 .blm-file-row .unity-toggle {
     flex-shrink: 0;
     align-self: center;
@@ -84,7 +88,14 @@
     max-width: 100%;
 }
 
-.blm-file-row-folder-foldout .unity-foldout__toggle,
+.blm-file-row-folder-foldout .unity-foldout__toggle {
+    min-width: 0;
+    flex-grow: 1;
+    flex-shrink: 1;
+    margin-left: 0;
+    padding-left: 0;
+}
+
 .blm-file-row-folder-foldout .unity-toggle {
     min-width: 0;
     flex-grow: 1;
@@ -93,7 +104,13 @@
     padding-left: 0;
 }
 
-.blm-file-row-folder-foldout .unity-foldout__input,
+.blm-file-row-folder-foldout .unity-foldout__input {
+    flex-shrink: 0;
+    margin-left: 0;
+    margin-right: 2px;
+    left: 0;
+}
+
 .blm-file-row-folder-foldout .unity-toggle__input {
     flex-shrink: 0;
     margin-left: 0;
@@ -101,13 +118,25 @@
     left: 0;
 }
 
-.blm-file-row-folder-foldout .unity-foldout__checkmark,
+.blm-file-row-folder-foldout .unity-foldout__checkmark {
+    margin-left: 0;
+    margin-right: 2px;
+}
+
 .blm-file-row-folder-foldout .unity-toggle__checkmark {
     margin-left: 0;
     margin-right: 2px;
 }
 
-.blm-file-row-folder-foldout .unity-foldout__text,
+.blm-file-row-folder-foldout .unity-foldout__text {
+    min-width: 0;
+    flex-grow: 1;
+    flex-shrink: 1;
+    white-space: normal;
+    overflow: hidden;
+    text-overflow: clip;
+}
+
 .blm-file-row-folder-foldout .unity-toggle__text {
     min-width: 0;
     flex-grow: 1;

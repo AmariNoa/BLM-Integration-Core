@@ -34,6 +34,11 @@ namespace com.amari_noa.blm_integration_core.editor
         internal const int ThumbnailRequestConcurrency = 5;
         internal const int ThumbnailRequestTimeoutSeconds = 10;
         internal const int ThumbnailDiskCacheTtlDays = 30;
+        internal const int ImportIndexSchemaVersion = 1;
+        internal const string ImportIndexRelativePath = "ProjectSettings/com.amari-noa.blm-integration-core.import-index.json";
+        internal const int ImportedStateCacheSchemaVersion = 1;
+        internal const string ImportedStateCacheRelativePath = "Library/BlmIntegrationCore/imported-state-cache-v1.json";
+        internal const int UnityPackageGuidCacheMaxEntries = 300;
         internal static readonly string[] IntegrationPreferredDisplayExtensions = { ".unitypackage", ".amri" };
         internal static readonly string[] StandalonePreferredDisplayExtensions = { ".unitypackage" };
 

@@ -57,6 +57,7 @@
       "imported_state": {
         "has_imported_files": "Imported files found"
       },
+      "imported_marker_prefix": "[@] ",
       "folder_path": "Folder path",
       "open_folder_path": "Open folder path",
       "other_files": "other files",

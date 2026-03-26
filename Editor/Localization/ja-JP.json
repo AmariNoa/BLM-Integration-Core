@@ -57,6 +57,7 @@
       "imported_state": {
         "has_imported_files": "インポート済みファイルあり"
       },
+      "imported_marker_prefix": "[@] ",
       "folder_path": "フォルダーパス",
       "open_folder_path": "フォルダーを開く",
       "other_files": "その他ファイル",
