@@ -28,6 +28,10 @@ namespace com.amari_noa.blm_integration_core.editor
         [JsonProperty("guidOwners")]
         public Dictionary<string, BlmImportIndexGuidOwnerEntry> GuidOwners { get; set; } =
             new Dictionary<string, BlmImportIndexGuidOwnerEntry>(System.StringComparer.Ordinal);
+
+        [JsonProperty("fileHashes")]
+        public Dictionary<string, BlmImportIndexFileHashEntry> FileHashes { get; set; } =
+            new Dictionary<string, BlmImportIndexFileHashEntry>(System.StringComparer.OrdinalIgnoreCase);
     }
 
     [JsonObject(MemberSerialization.OptIn)]
@@ -48,5 +52,18 @@ namespace com.amari_noa.blm_integration_core.editor
 
         [JsonProperty("lastKnownAssetPath")]
         public string LastKnownAssetPath { get; set; } = string.Empty;
+    }
+
+    [JsonObject(MemberSerialization.OptIn)]
+    internal sealed class BlmImportIndexFileHashEntry
+    {
+        [JsonProperty("fileSize")]
+        public long FileSize { get; set; }
+
+        [JsonProperty("lastWriteTimeUtcTicks")]
+        public long LastWriteTimeUtcTicks { get; set; }
+
+        [JsonProperty("sha256")]
+        public string Sha256 { get; set; } = string.Empty;
     }
 }

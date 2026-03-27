@@ -55,7 +55,12 @@
       "product_name": "商品名",
       "product_files": "商品ファイル",
       "imported_state": {
-        "has_imported_files": "インポート済みファイルあり"
+        "checking": "インポートファイルチェック中 ({0}/{1})",
+        "has_imported_files": "インポート済みファイルあり",
+        "tooltip": {
+          "imported": "インポート済み",
+          "partial": "一部インポート済み"
+        }
       },
       "imported_marker_prefix": "[@] ",
       "folder_path": "フォルダーパス",

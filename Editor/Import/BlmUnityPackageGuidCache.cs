@@ -4,11 +4,26 @@ using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using UnityEngine;
 
 namespace com.amari_noa.blm_integration_core.editor
 {
+    internal readonly struct BlmUnityPackageAssetEntry
+    {
+        public string Guid { get; }
+        public bool HasAssetData { get; }
+        public string AssetSha256 { get; }
+
+        public BlmUnityPackageAssetEntry(string guid, bool hasAssetData, string assetSha256)
+        {
+            Guid = guid ?? string.Empty;
+            HasAssetData = hasAssetData;
+            AssetSha256 = assetSha256 ?? string.Empty;
+        }
+    }
+
     internal sealed class BlmUnityPackageGuidCache
     {
         private const int TarBlockSize = 512;
@@ -40,14 +55,44 @@ namespace com.amari_noa.blm_integration_core.editor
                 }
             }
 
-            var parsedGuids = ParseUnityPackageGuids(fullPath);
+            var parsedEntries = ParseUnityPackageEntries(fullPath);
+            var parsedGuids = BuildGuidArray(parsedEntries);
             lock (_syncRoot)
             {
-                AddOrReplace(cacheKey, parsedGuids);
+                AddOrReplace(cacheKey, parsedEntries, parsedGuids);
             }
 
             guids = parsedGuids;
             return parsedGuids.Count > 0;
+        }
+
+        public bool TryGetEntries(string sourcePath, out IReadOnlyList<BlmUnityPackageAssetEntry> entries)
+        {
+            entries = Array.Empty<BlmUnityPackageAssetEntry>();
+            if (!TryBuildCacheKey(sourcePath, out var cacheKey, out var fullPath))
+            {
+                return false;
+            }
+
+            lock (_syncRoot)
+            {
+                if (_entries.TryGetValue(cacheKey, out var cached))
+                {
+                    Touch(cached);
+                    entries = cached.Entries;
+                    return cached.Entries.Count > 0;
+                }
+            }
+
+            var parsedEntries = ParseUnityPackageEntries(fullPath);
+            var parsedGuids = BuildGuidArray(parsedEntries);
+            lock (_syncRoot)
+            {
+                AddOrReplace(cacheKey, parsedEntries, parsedGuids);
+            }
+
+            entries = parsedEntries;
+            return parsedEntries.Count > 0;
         }
 
         private void Touch(CacheEntry entry)
@@ -61,7 +106,10 @@ namespace com.amari_noa.blm_integration_core.editor
             _lru.AddFirst(entry.LruNode);
         }
 
-        private void AddOrReplace(string cacheKey, IReadOnlyList<string> guids)
+        private void AddOrReplace(
+            string cacheKey,
+            IReadOnlyList<BlmUnityPackageAssetEntry> entries,
+            IReadOnlyList<string> guids)
         {
             if (string.IsNullOrWhiteSpace(cacheKey))
             {
@@ -70,6 +118,7 @@ namespace com.amari_noa.blm_integration_core.editor
 
             if (_entries.TryGetValue(cacheKey, out var existing))
             {
+                existing.Entries = entries ?? Array.Empty<BlmUnityPackageAssetEntry>();
                 existing.Guids = guids ?? Array.Empty<string>();
                 return;
             }
@@ -79,6 +128,7 @@ namespace com.amari_noa.blm_integration_core.editor
             _entries[cacheKey] = new CacheEntry
             {
                 LruNode = node,
+                Entries = entries ?? Array.Empty<BlmUnityPackageAssetEntry>(),
                 Guids = guids ?? Array.Empty<string>()
             };
 
@@ -135,11 +185,11 @@ namespace com.amari_noa.blm_integration_core.editor
             return true;
         }
 
-        private static IReadOnlyList<string> ParseUnityPackageGuids(string fullPath)
+        private static IReadOnlyList<BlmUnityPackageAssetEntry> ParseUnityPackageEntries(string fullPath)
         {
             if (string.IsNullOrWhiteSpace(fullPath) || !File.Exists(fullPath))
             {
-                return Array.Empty<string>();
+                return Array.Empty<BlmUnityPackageAssetEntry>();
             }
 
             try
@@ -149,15 +199,33 @@ namespace com.amari_noa.blm_integration_core.editor
                 var records = ReadEntryRecords(gzipStream);
                 return records
                     .Where(pair => pair.Value.HasPathname && (pair.Value.HasAsset || pair.Value.HasMeta))
-                    .Select(pair => pair.Key)
-                    .OrderBy(guid => guid, StringComparer.Ordinal)
+                    .Select(pair => new BlmUnityPackageAssetEntry(
+                        pair.Key,
+                        pair.Value.HasAsset,
+                        pair.Value.AssetSha256))
+                    .OrderBy(entry => entry.Guid ?? string.Empty, StringComparer.Ordinal)
                     .ToArray();
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"[BLM Integration Core] Failed to parse unitypackage GUIDs: path={fullPath}, error={ex.Message}");
+                Debug.LogWarning($"[BLM Integration Core] Failed to parse unitypackage records: path={fullPath}, error={ex.Message}");
+                return Array.Empty<BlmUnityPackageAssetEntry>();
+            }
+        }
+
+        private static IReadOnlyList<string> BuildGuidArray(IReadOnlyList<BlmUnityPackageAssetEntry> entries)
+        {
+            if (entries == null || entries.Count == 0)
+            {
                 return Array.Empty<string>();
             }
+
+            return entries
+                .Select(entry => entry.Guid ?? string.Empty)
+                .Where(guid => !string.IsNullOrWhiteSpace(guid))
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(guid => guid, StringComparer.Ordinal)
+                .ToArray();
         }
 
         private static Dictionary<string, PackageEntryRecord> ReadEntryRecords(Stream tarStream)
@@ -186,6 +254,7 @@ namespace com.amari_noa.blm_integration_core.editor
                     break;
                 }
 
+                var handled = false;
                 if (TryExtractRecordKey(entryName, out var guid, out var entryKey))
                 {
                     if (!records.TryGetValue(guid, out var record))
@@ -198,14 +267,28 @@ namespace com.amari_noa.blm_integration_core.editor
                     {
                         case "pathname":
                             record.HasPathname = true;
+                            ConsumeBytes(tarStream, entrySize, consumeBuffer);
+                            ConsumePadding(tarStream, entrySize, consumeBuffer);
+                            handled = true;
                             break;
                         case "asset":
                             record.HasAsset = true;
+                            record.AssetSha256 = ConsumeBytesAndComputeSha256(tarStream, entrySize, consumeBuffer);
+                            ConsumePadding(tarStream, entrySize, consumeBuffer);
+                            handled = true;
                             break;
                         case "asset.meta":
                             record.HasMeta = true;
+                            ConsumeBytes(tarStream, entrySize, consumeBuffer);
+                            ConsumePadding(tarStream, entrySize, consumeBuffer);
+                            handled = true;
                             break;
                     }
+                }
+
+                if (handled)
+                {
+                    continue;
                 }
 
                 ConsumeBytes(tarStream, entrySize, consumeBuffer);
@@ -230,6 +313,48 @@ namespace com.amari_noa.blm_integration_core.editor
             }
 
             return totalRead;
+        }
+
+        private static string ConsumeBytesAndComputeSha256(Stream stream, long byteCount, byte[] readBuffer)
+        {
+            if (stream == null || readBuffer == null || readBuffer.Length == 0 || byteCount <= 0)
+            {
+                return string.Empty;
+            }
+
+            using var incrementalHash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+            var remaining = byteCount;
+            while (remaining > 0)
+            {
+                var readSize = (int)Math.Min(readBuffer.Length, remaining);
+                var read = stream.Read(readBuffer, 0, readSize);
+                if (read <= 0)
+                {
+                    return string.Empty;
+                }
+
+                incrementalHash.AppendData(readBuffer, 0, read);
+                remaining -= read;
+            }
+
+            var hashBytes = incrementalHash.GetHashAndReset();
+            return ToLowerHex(hashBytes);
+        }
+
+        private static string ToLowerHex(byte[] bytes)
+        {
+            if (bytes == null || bytes.Length == 0)
+            {
+                return string.Empty;
+            }
+
+            var builder = new StringBuilder(bytes.Length * 2);
+            for (var i = 0; i < bytes.Length; i++)
+            {
+                builder.Append(bytes[i].ToString("x2", CultureInfo.InvariantCulture));
+            }
+
+            return builder.ToString();
         }
 
         private static void ConsumeBytes(Stream stream, long byteCount, byte[] readBuffer)
@@ -369,6 +494,7 @@ namespace com.amari_noa.blm_integration_core.editor
         private sealed class CacheEntry
         {
             public LinkedListNode<string> LruNode;
+            public IReadOnlyList<BlmUnityPackageAssetEntry> Entries = Array.Empty<BlmUnityPackageAssetEntry>();
             public IReadOnlyList<string> Guids = Array.Empty<string>();
         }
 
@@ -377,6 +503,7 @@ namespace com.amari_noa.blm_integration_core.editor
             public bool HasPathname;
             public bool HasAsset;
             public bool HasMeta;
+            public string AssetSha256 = string.Empty;
         }
     }
 }

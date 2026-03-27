@@ -55,7 +55,12 @@
       "product_name": "Product name",
       "product_files": "Product file(s)",
       "imported_state": {
-        "has_imported_files": "Imported files found"
+        "checking": "Checking imported files... ({0}/{1})",
+        "has_imported_files": "Imported files found",
+        "tooltip": {
+          "imported": "Imported",
+          "partial": "Partially imported"
+        }
       },
       "imported_marker_prefix": "[@] ",
       "folder_path": "Folder path",

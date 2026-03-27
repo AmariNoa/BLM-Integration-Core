@@ -38,6 +38,15 @@ namespace com.amari_noa.blm_integration_core.editor
         [JsonProperty("importIndexFingerprint")]
         public string ImportIndexFingerprint { get; set; } = string.Empty;
 
+        [JsonProperty("destinationAssetGuid")]
+        public string DestinationAssetGuid { get; set; } = string.Empty;
+
+        [JsonProperty("destinationFileSize")]
+        public long DestinationFileSize { get; set; }
+
+        [JsonProperty("destinationLastWriteTimeUtcTicks")]
+        public long DestinationLastWriteTimeUtcTicks { get; set; }
+
         [JsonProperty("isImportedUnchanged")]
         public bool IsImportedUnchanged { get; set; }
     }
@@ -72,10 +81,30 @@ namespace com.amari_noa.blm_integration_core.editor
             string importIndexFingerprint,
             out BlmImportedStateCacheEntry entry)
         {
+            return TryBuildEntry(
+                productId,
+                sourceFilePath,
+                importIndexFingerprint,
+                string.Empty,
+                0L,
+                0L,
+                out entry);
+        }
+
+        public bool TryBuildEntry(
+            string productId,
+            string sourceFilePath,
+            string importIndexFingerprint,
+            string destinationAssetGuid,
+            long destinationFileSize,
+            long destinationLastWriteTimeUtcTicks,
+            out BlmImportedStateCacheEntry entry)
+        {
             entry = null;
 
             var normalizedProductId = NormalizeProductId(productId);
             var normalizedFingerprint = NormalizeImportIndexFingerprint(importIndexFingerprint);
+            var normalizedDestinationGuid = NormalizeGuid(destinationAssetGuid);
             if (string.IsNullOrWhiteSpace(normalizedProductId) || string.IsNullOrWhiteSpace(normalizedFingerprint))
             {
                 return false;
@@ -113,7 +142,10 @@ namespace com.amari_noa.blm_integration_core.editor
                 NormalizedSourcePath = NormalizeSourcePath(fullPath),
                 SourceFileSize = info.Length,
                 SourceLastWriteTimeUtcTicks = info.LastWriteTimeUtc.Ticks,
-                ImportIndexFingerprint = normalizedFingerprint
+                ImportIndexFingerprint = normalizedFingerprint,
+                DestinationAssetGuid = normalizedDestinationGuid,
+                DestinationFileSize = Math.Max(0L, destinationFileSize),
+                DestinationLastWriteTimeUtcTicks = Math.Max(0L, destinationLastWriteTimeUtcTicks)
             };
             return !string.IsNullOrWhiteSpace(entry.NormalizedSourcePath);
         }
@@ -332,6 +364,9 @@ namespace com.amari_noa.blm_integration_core.editor
                         .ThenBy(entry => entry.SourceFileSize)
                         .ThenBy(entry => entry.SourceLastWriteTimeUtcTicks)
                         .ThenBy(entry => entry.ImportIndexFingerprint ?? string.Empty, StringComparer.Ordinal)
+                        .ThenBy(entry => entry.DestinationAssetGuid ?? string.Empty, StringComparer.Ordinal)
+                        .ThenBy(entry => entry.DestinationFileSize)
+                        .ThenBy(entry => entry.DestinationLastWriteTimeUtcTicks)
                         .ToList()
                 };
 
@@ -356,6 +391,9 @@ namespace com.amari_noa.blm_integration_core.editor
             var productId = NormalizeProductId(source.ProductId);
             var normalizedSourcePath = NormalizeSourcePath(source.NormalizedSourcePath);
             var importIndexFingerprint = NormalizeImportIndexFingerprint(source.ImportIndexFingerprint);
+            var destinationAssetGuid = NormalizeGuid(source.DestinationAssetGuid);
+            var destinationFileSize = Math.Max(0L, source.DestinationFileSize);
+            var destinationLastWriteTimeUtcTicks = Math.Max(0L, source.DestinationLastWriteTimeUtcTicks);
             if (string.IsNullOrWhiteSpace(productId) ||
                 string.IsNullOrWhiteSpace(normalizedSourcePath) ||
                 string.IsNullOrWhiteSpace(importIndexFingerprint) ||
@@ -372,6 +410,9 @@ namespace com.amari_noa.blm_integration_core.editor
                 SourceFileSize = source.SourceFileSize,
                 SourceLastWriteTimeUtcTicks = source.SourceLastWriteTimeUtcTicks,
                 ImportIndexFingerprint = importIndexFingerprint,
+                DestinationAssetGuid = destinationAssetGuid,
+                DestinationFileSize = destinationFileSize,
+                DestinationLastWriteTimeUtcTicks = destinationLastWriteTimeUtcTicks,
                 IsImportedUnchanged = source.IsImportedUnchanged
             };
             return true;
@@ -381,12 +422,15 @@ namespace com.amari_noa.blm_integration_core.editor
         {
             return string.Format(
                 CultureInfo.InvariantCulture,
-                "{0}|{1}|{2}|{3}|{4}",
+                "{0}|{1}|{2}|{3}|{4}|{5}|{6}|{7}",
                 entry.ProductId ?? string.Empty,
                 entry.NormalizedSourcePath ?? string.Empty,
                 entry.SourceFileSize,
                 entry.SourceLastWriteTimeUtcTicks,
-                entry.ImportIndexFingerprint ?? string.Empty);
+                entry.ImportIndexFingerprint ?? string.Empty,
+                entry.DestinationAssetGuid ?? string.Empty,
+                entry.DestinationFileSize,
+                entry.DestinationLastWriteTimeUtcTicks);
         }
 
         private static string NormalizeProductId(string productId)
@@ -411,6 +455,33 @@ namespace com.amari_noa.blm_integration_core.editor
             return string.IsNullOrWhiteSpace(fingerprint)
                 ? string.Empty
                 : fingerprint.Trim();
+        }
+
+        private static string NormalizeGuid(string guid)
+        {
+            if (string.IsNullOrWhiteSpace(guid))
+            {
+                return string.Empty;
+            }
+
+            var normalized = guid.Trim().ToLowerInvariant();
+            if (normalized.Length != 32)
+            {
+                return string.Empty;
+            }
+
+            for (var i = 0; i < normalized.Length; i++)
+            {
+                var c = normalized[i];
+                var isDigit = c >= '0' && c <= '9';
+                var isHexLower = c >= 'a' && c <= 'f';
+                if (!isDigit && !isHexLower)
+                {
+                    return string.Empty;
+                }
+            }
+
+            return normalized;
         }
 
         private static string BuildCachePath()

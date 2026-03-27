@@ -62,6 +62,10 @@
     background-color: rgba(126, 171, 126, 0.16);
 }
 
+.blm-file-row-imported-partial {
+    background-color: rgba(171, 150, 110, 0.16);
+}
+
 .blm-file-row .unity-toggle {
     flex-shrink: 0;
     align-self: center;

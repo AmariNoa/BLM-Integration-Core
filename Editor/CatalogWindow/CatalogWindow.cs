@@ -20,6 +20,7 @@ namespace com.amari_noa.blm_integration_core.editor
         [SerializeField] private VisualTreeAsset visualTreeAsset;
         private const string NotSetToken = "__NOT_SET__";
         private const string ImportedFileRowClassName = "blm-file-row-imported";
+        private const string PartiallyImportedFileRowClassName = "blm-file-row-imported-partial";
         private const int ImportedStateChecksPerUpdate = 1;
         private const int ImportedStateUnityPackageGuidChecksPerUpdate = 8;
         private static readonly Vector2 InitialWindowSize = new Vector2(1320f, 850f);
@@ -47,7 +48,8 @@ namespace com.amari_noa.blm_integration_core.editor
         private readonly List<TagEntry> _allTags = new List<TagEntry>();
         private readonly List<TagEntry> _visibleTags = new List<TagEntry>();
         private readonly Dictionary<string, VisualElement> _visibleCardsByProductId = new Dictionary<string, VisualElement>(StringComparer.Ordinal);
-        private readonly Dictionary<string, bool> _importedStateByProductFileKey = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, ImportedStateRowHighlightKind> _importedStateByProductFileKey =
+            new Dictionary<string, ImportedStateRowHighlightKind>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, List<VisualElement>> _detailFileRowsByProductFileKey =
             new Dictionary<string, List<VisualElement>>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, List<VisualElement>> _selectedPanelFileRowsByProductFileKey =
@@ -112,12 +114,14 @@ namespace com.amari_noa.blm_integration_core.editor
         private int _importedStateEvaluationVersion;
         private bool _importedStateCheckLoopSubscribed;
         private int _activeImportedStatePendingCount;
+        private int _activeImportedStateTotalCount;
         private bool _activeImportedStateHasImportedFiles;
         private string _activeImportedStateProductId = string.Empty;
         private string _activeImportedStateImportIndexFingerprint = "0:0";
         private Task<ImportedStateCheckWorkItem> _activeImportedStatePreloadTask;
         private ImportedStateCheckWorkItem? _activeImportedStatePreloadWorkItem;
         private ImportedStateUnityPackageCheckState _activeImportedStateUnityPackageCheck;
+        private ImportedStateNonUnityContentCheckState _activeImportedStateNonUnityContentCheck;
         private int _detailFileLoadVersion;
         private bool _detailFilesLoading;
         private string _detailFilesLoadingProductId = string.Empty;
@@ -745,6 +749,7 @@ namespace com.amari_noa.blm_integration_core.editor
                     row.RemoveFromClassList("blm-file-row-section");
                     row.RemoveFromClassList("blm-file-row-section-with-toggle");
                     row.RemoveFromClassList(ImportedFileRowClassName);
+                    row.RemoveFromClassList(PartiallyImportedFileRowClassName);
                     label.RemoveFromClassList("blm-file-row-section-label");
                     row.style.paddingLeft = 0f;
                     toggle.style.display = DisplayStyle.None;
@@ -757,6 +762,7 @@ namespace com.amari_noa.blm_integration_core.editor
                     folderFoldout.SetValueWithoutNotify(false);
                     label.style.display = DisplayStyle.Flex;
                     label.text = string.Empty;
+                    SetRowImportedStateTooltip(row, string.Empty);
                     return;
                 }
 
@@ -767,6 +773,8 @@ namespace com.amari_noa.blm_integration_core.editor
                     row.AddToClassList("blm-file-row-section");
                     label.AddToClassList("blm-file-row-section-label");
                     row.RemoveFromClassList(ImportedFileRowClassName);
+                    row.RemoveFromClassList(PartiallyImportedFileRowClassName);
+                    SetRowImportedStateTooltip(row, string.Empty);
                     row.style.paddingLeft = 0f;
                     folderFoldout.style.display = DisplayStyle.None;
                     folderFoldout.userData = null;
@@ -804,6 +812,8 @@ namespace com.amari_noa.blm_integration_core.editor
                     toggle.userData = entry.FolderFiles;
                     ApplyDetailFolderToggleState(toggle, entry.FolderFiles);
                     row.RemoveFromClassList(ImportedFileRowClassName);
+                    row.RemoveFromClassList(PartiallyImportedFileRowClassName);
+                    SetRowImportedStateTooltip(row, string.Empty);
                     folderFoldout.style.display = DisplayStyle.Flex;
                     folderFoldout.userData = entry.FolderKey;
                     folderFoldout.text = entry.DisplayText;
@@ -824,7 +834,7 @@ namespace com.amari_noa.blm_integration_core.editor
                 label.style.display = DisplayStyle.Flex;
                 label.text = entry.DisplayText;
                 RegisterDetailFileRow(_detailItem?.ProductId, file, row);
-                ApplyImportedStateRowClass(row, IsFileImportedAndUnchangedByState(_detailItem, file));
+                ApplyImportedStateVisualToFileRow(row, GetImportedStateForFile(_detailItem, file));
             };
             _detailFileListView.selectionType = SelectionType.None;
             _detailFileListView.virtualizationMethod = CollectionVirtualizationMethod.DynamicHeight;
@@ -2727,10 +2737,13 @@ namespace com.amari_noa.blm_integration_core.editor
             row.style.minWidth = 0f;
 
             var toggle = new Toggle();
+            toggle.name = "Toggle";
             toggle.AddToClassList("blm-file-row-select-toggle");
             var folderFoldout = new Foldout();
+            folderFoldout.name = "FolderFoldout";
             folderFoldout.AddToClassList("blm-file-row-folder-foldout");
             var label = new Label();
+            label.name = "Label";
             label.AddToClassList("blm-file-row-label");
 
             row.Add(toggle);
@@ -2741,6 +2754,8 @@ namespace com.amari_noa.blm_integration_core.editor
             {
                 row.AddToClassList("blm-file-row-section");
                 row.RemoveFromClassList(ImportedFileRowClassName);
+                row.RemoveFromClassList(PartiallyImportedFileRowClassName);
+                SetRowImportedStateTooltip(row, string.Empty);
                 label.AddToClassList("blm-file-row-section-label");
                 row.style.paddingLeft = 0f;
                 folderFoldout.style.display = DisplayStyle.None;
@@ -2790,6 +2805,8 @@ namespace com.amari_noa.blm_integration_core.editor
                 toggle.userData = entry.FolderFiles;
                 ApplySelectedPanelToggleState(toggle, item?.ProductId, entry.FolderFiles);
                 row.RemoveFromClassList(ImportedFileRowClassName);
+                row.RemoveFromClassList(PartiallyImportedFileRowClassName);
+                SetRowImportedStateTooltip(row, string.Empty);
                 toggle.RegisterValueChangedCallback(evt =>
                 {
                     if (toggle.userData is IReadOnlyList<BlmFileRecord> files)
@@ -2837,7 +2854,7 @@ namespace com.amari_noa.blm_integration_core.editor
             label.style.display = DisplayStyle.Flex;
             label.text = entry.DisplayText;
             RegisterSelectedPanelFileRow(item?.ProductId, fileEntry, row);
-            ApplyImportedStateRowClass(row, IsFileImportedAndUnchangedByState(item, fileEntry));
+            ApplyImportedStateVisualToFileRow(row, GetImportedStateForFile(item, fileEntry));
             return row;
         }
 
@@ -3985,6 +4002,7 @@ namespace com.amari_noa.blm_integration_core.editor
             _activeImportedStateProductId = normalizedProductId;
             _activeImportedStateHasImportedFiles = false;
             _activeImportedStatePendingCount = 0;
+            _activeImportedStateTotalCount = 0;
             _activeImportedStateImportIndexFingerprint = BlmImportIndexService.Shared.GetIndexFileFingerprint();
 
             ClearImportedStateForProduct(normalizedProductId);
@@ -3992,6 +4010,7 @@ namespace com.amari_noa.blm_integration_core.editor
             _pendingImportedStateItem = item;
             _pendingImportedStateFileIndex = 0;
             _activeImportedStatePendingCount = _pendingImportedStateFiles?.Count ?? 0;
+            _activeImportedStateTotalCount = _activeImportedStatePendingCount;
 
             if (_activeImportedStatePendingCount > 0)
             {
@@ -4009,7 +4028,9 @@ namespace com.amari_noa.blm_integration_core.editor
             _activeImportedStatePreloadTask = null;
             _activeImportedStatePreloadWorkItem = null;
             _activeImportedStateUnityPackageCheck = null;
+            _activeImportedStateNonUnityContentCheck = null;
             _activeImportedStatePendingCount = 0;
+            _activeImportedStateTotalCount = 0;
             _activeImportedStateHasImportedFiles = false;
             _activeImportedStateProductId = string.Empty;
             _activeImportedStateImportIndexFingerprint = "0:0";
@@ -4076,6 +4097,16 @@ namespace com.amari_noa.blm_integration_core.editor
                 return;
             }
 
+            if (ProcessActiveImportedStateNonUnityContentCheck())
+            {
+                if (ShouldStopImportedStateCheckLoop())
+                {
+                    StopImportedStateCheckLoop();
+                }
+
+                return;
+            }
+
             var processed = 0;
             while (processed < ImportedStateChecksPerUpdate &&
                    _pendingImportedStateFileIndex >= 0 &&
@@ -4097,19 +4128,15 @@ namespace com.amari_noa.blm_integration_core.editor
                 processed++;
                 if (RequiresImportedStateBackgroundPreload(workItem.File))
                 {
-                    if (TryResolveImportedStateFromCache(workItem, out var cachedImported))
-                    {
-                        UpdateImportedStateForFile(workItem.Item?.ProductId, workItem.File, cachedImported);
-                        continue;
-                    }
-
                     _activeImportedStatePreloadWorkItem = workItem;
                     _activeImportedStatePreloadTask = Task.Run(() => PreloadImportedStateWorkItem(workItem));
                     break;
                 }
 
-                var isImported = EvaluateImportedStateForFile(workItem.Item, workItem.File, workItem.ImportIndexFingerprint);
-                UpdateImportedStateForFile(workItem.Item?.ProductId, workItem.File, isImported);
+                if (TryBeginImportedStateNonUnityContentCheck(workItem))
+                {
+                    break;
+                }
             }
 
             if (ShouldStopImportedStateCheckLoop())
@@ -4132,35 +4159,158 @@ namespace com.amari_noa.blm_integration_core.editor
                 return true;
             }
 
-            var checksRemaining = ImportedStateUnityPackageGuidChecksPerUpdate;
-            while (checksRemaining > 0 && state.IsImported && state.NextGuidIndex < state.Guids.Count)
+            if (state.ActiveAssetHashComparisonTask != null)
             {
-                var guid = state.Guids[state.NextGuidIndex] ?? string.Empty;
-                state.NextGuidIndex++;
-                checksRemaining--;
-
-                if (string.IsNullOrWhiteSpace(guid) ||
-                    !BlmImportIndexService.Shared.IsGuidImportedAndUnchangedForProduct(state.WorkItem.Item?.ProductId, guid))
+                if (!state.ActiveAssetHashComparisonTask.IsCompleted)
                 {
-                    state.IsImported = false;
-                    break;
+                    return true;
+                }
+
+                var isHashMatch = state.ActiveAssetHashComparisonTask.IsCompletedSuccessfully &&
+                                  state.ActiveAssetHashComparisonTask.Result;
+                state.ActiveAssetHashComparisonTask = null;
+                if (isHashMatch)
+                {
+                    state.HasImportedEntries = true;
+                }
+                else
+                {
+                    state.HasMissingEntries = true;
                 }
             }
 
-            if (!state.IsImported || state.NextGuidIndex >= state.Guids.Count)
+            var checksRemaining = ImportedStateUnityPackageGuidChecksPerUpdate;
+            while (checksRemaining > 0 &&
+                   state.NextEntryIndex < state.Entries.Count &&
+                   !(state.HasImportedEntries && state.HasMissingEntries))
             {
-                if (state.CacheEntry != null)
+                var entry = state.Entries[state.NextEntryIndex];
+                state.NextEntryIndex++;
+                checksRemaining--;
+
+                if (string.IsNullOrWhiteSpace(entry.Guid) ||
+                    !BlmImportIndexService.Shared.TryGetImportedGuidAssetPathForProduct(
+                        state.WorkItem.Item?.ProductId,
+                        entry.Guid,
+                        out var destinationAssetPath))
                 {
-                    _importedStateCacheService.Upsert(state.CacheEntry, state.IsImported);
+                    state.HasMissingEntries = true;
+                    continue;
                 }
 
+                if (!entry.HasAssetData)
+                {
+                    state.HasImportedEntries = true;
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(entry.AssetSha256) ||
+                    !BlmImportIndexService.Shared.TryResolveAssetAbsolutePath(destinationAssetPath, out var destinationAbsolutePath))
+                {
+                    state.HasMissingEntries = true;
+                    continue;
+                }
+
+                state.ActiveAssetHashComparisonTask = Task.Run(() =>
+                    TryIsUnityPackageAssetHashMatch(destinationAbsolutePath, entry.AssetSha256));
+                break;
+            }
+
+            if (state.ActiveAssetHashComparisonTask == null &&
+                ((state.HasImportedEntries && state.HasMissingEntries) ||
+                 state.NextEntryIndex >= state.Entries.Count))
+            {
+                var importedState = DetermineUnityPackageImportedState(state.HasImportedEntries, state.HasMissingEntries);
                 UpdateImportedStateForFile(
                     state.WorkItem.Item?.ProductId,
                     state.WorkItem.File,
-                    state.IsImported);
+                    importedState);
                 _activeImportedStateUnityPackageCheck = null;
             }
 
+            return true;
+        }
+
+        private bool ProcessActiveImportedStateNonUnityContentCheck()
+        {
+            var state = _activeImportedStateNonUnityContentCheck;
+            if (state == null)
+            {
+                return false;
+            }
+
+            if (!state.HashComparisonTask.IsCompleted)
+            {
+                return true;
+            }
+
+            _activeImportedStateNonUnityContentCheck = null;
+            if (state.WorkItem.EvaluationVersion != _importedStateEvaluationVersion)
+            {
+                return true;
+            }
+
+            var isImported = state.HashComparisonTask.IsCompletedSuccessfully &&
+                             state.HashComparisonTask.Result;
+            if (state.CacheEntry != null)
+            {
+                _importedStateCacheService.Upsert(state.CacheEntry, isImported);
+            }
+
+            UpdateImportedStateForFile(
+                state.WorkItem.Item?.ProductId,
+                state.WorkItem.File,
+                isImported);
+            return true;
+        }
+
+        private bool TryBeginImportedStateNonUnityContentCheck(ImportedStateCheckWorkItem workItem)
+        {
+            if (workItem.Item == null ||
+                workItem.File == null ||
+                BlmImportedFileStateEvaluator.IsUnityPackageFile(workItem.File))
+            {
+                UpdateImportedStateForFile(workItem.Item?.ProductId, workItem.File, false);
+                return false;
+            }
+
+            if (!_importedFileStateEvaluator.TryPrepareNonUnityImportedStateCheck(
+                    workItem.Item,
+                    workItem.File,
+                    out var preparedCheck))
+            {
+                UpdateImportedStateForFile(workItem.Item?.ProductId, workItem.File, false);
+                return false;
+            }
+
+            BlmImportedStateCacheEntry cacheEntry = null;
+            if (_importedStateCacheService.TryBuildEntry(
+                    workItem.Item.ProductId,
+                    workItem.File.FullPath,
+                    workItem.ImportIndexFingerprint,
+                    preparedCheck.Guid,
+                    preparedCheck.DestinationFileSize,
+                    preparedCheck.DestinationLastWriteTimeUtcTicks,
+                    out var builtCacheEntry))
+            {
+                cacheEntry = builtCacheEntry;
+                if (_importedStateCacheService.TryGet(cacheEntry, out var cachedImported))
+                {
+                    UpdateImportedStateForFile(workItem.Item?.ProductId, workItem.File, cachedImported);
+                    return false;
+                }
+            }
+
+            var hashComparisonTask = Task.Run(() =>
+                BlmImportIndexService.Shared.TryAreFilesContentEqual(
+                    preparedCheck.SourceFullPath,
+                    preparedCheck.DestinationFullPath,
+                    out var areEqual) &&
+                areEqual);
+            _activeImportedStateNonUnityContentCheck = new ImportedStateNonUnityContentCheckState(
+                workItem,
+                cacheEntry,
+                hashComparisonTask);
             return true;
         }
 
@@ -4171,67 +4321,41 @@ namespace com.amari_noa.blm_integration_core.editor
                 return;
             }
 
-            BlmImportedStateCacheEntry cacheEntry = null;
-            if (TryBuildImportedStateCacheEntry(workItem, out var builtCacheEntry))
+            if (!BlmUnityPackageGuidCache.Shared.TryGetEntries(workItem.File?.FullPath, out var entries) ||
+                entries == null ||
+                entries.Count == 0)
             {
-                cacheEntry = builtCacheEntry;
-                if (_importedStateCacheService.TryGet(cacheEntry, out var cachedImported))
-                {
-                    UpdateImportedStateForFile(workItem.Item?.ProductId, workItem.File, cachedImported);
-                    return;
-                }
-            }
-
-            if (!BlmUnityPackageGuidCache.Shared.TryGetGuids(workItem.File?.FullPath, out var guids) ||
-                guids == null ||
-                guids.Count == 0)
-            {
-                if (cacheEntry != null)
-                {
-                    _importedStateCacheService.Upsert(cacheEntry, false);
-                }
-
-                UpdateImportedStateForFile(workItem.Item?.ProductId, workItem.File, false);
+                UpdateImportedStateForFile(
+                    workItem.Item?.ProductId,
+                    workItem.File,
+                    ImportedStateRowHighlightKind.None);
                 return;
             }
 
-            _activeImportedStateUnityPackageCheck = new ImportedStateUnityPackageCheckState(workItem, guids, cacheEntry);
+            _activeImportedStateUnityPackageCheck = new ImportedStateUnityPackageCheckState(workItem, entries);
         }
 
         private bool ShouldStopImportedStateCheckLoop()
         {
             return _activeImportedStatePreloadTask == null &&
                    _activeImportedStateUnityPackageCheck == null &&
+                   _activeImportedStateNonUnityContentCheck == null &&
                    (_pendingImportedStateFiles == null ||
                     _pendingImportedStateFileIndex >= _pendingImportedStateFiles.Count);
         }
 
-        private bool TryResolveImportedStateFromCache(ImportedStateCheckWorkItem workItem, out bool isImported)
+        private static ImportedStateRowHighlightKind DetermineUnityPackageImportedState(
+            bool hasImportedGuids,
+            bool hasMissingGuids)
         {
-            isImported = false;
-            if (!TryBuildImportedStateCacheEntry(workItem, out var cacheEntry))
+            if (hasImportedGuids)
             {
-                return false;
+                return hasMissingGuids
+                    ? ImportedStateRowHighlightKind.PartiallyImported
+                    : ImportedStateRowHighlightKind.Imported;
             }
 
-            return _importedStateCacheService.TryGet(cacheEntry, out isImported);
-        }
-
-        private bool TryBuildImportedStateCacheEntry(
-            ImportedStateCheckWorkItem workItem,
-            out BlmImportedStateCacheEntry cacheEntry)
-        {
-            cacheEntry = null;
-            if (workItem.Item == null || workItem.File == null)
-            {
-                return false;
-            }
-
-            return _importedStateCacheService.TryBuildEntry(
-                workItem.Item.ProductId,
-                workItem.File.FullPath,
-                workItem.ImportIndexFingerprint,
-                out cacheEntry);
+            return ImportedStateRowHighlightKind.None;
         }
 
         private static bool RequiresImportedStateBackgroundPreload(BlmFileRecord file)
@@ -4247,39 +4371,35 @@ namespace com.amari_noa.blm_integration_core.editor
         {
             if (RequiresImportedStateBackgroundPreload(workItem.File))
             {
-                _ = BlmUnityPackageGuidCache.Shared.TryGetGuids(workItem.File.FullPath, out _);
+                _ = BlmUnityPackageGuidCache.Shared.TryGetEntries(workItem.File.FullPath, out _);
             }
 
             return workItem;
         }
 
-        private bool EvaluateImportedStateForFile(BlmItemRecord item, BlmFileRecord file, string importIndexFingerprint)
+        private static bool TryIsUnityPackageAssetHashMatch(string destinationAbsolutePath, string expectedSourceSha256)
         {
-            if (item == null || file == null || string.IsNullOrWhiteSpace(item.ProductId))
+            if (string.IsNullOrWhiteSpace(destinationAbsolutePath) || string.IsNullOrWhiteSpace(expectedSourceSha256))
             {
                 return false;
             }
 
-            if (_importedStateCacheService.TryBuildEntry(
-                    item.ProductId,
-                    file.FullPath,
-                    importIndexFingerprint,
-                    out var cacheEntry))
-            {
-                if (_importedStateCacheService.TryGet(cacheEntry, out var cachedImported))
-                {
-                    return cachedImported;
-                }
-
-                var evaluated = _importedFileStateEvaluator.IsImportedAndUnchanged(item, file);
-                _importedStateCacheService.Upsert(cacheEntry, evaluated);
-                return evaluated;
-            }
-
-            return _importedFileStateEvaluator.IsImportedAndUnchanged(item, file);
+            return BlmImportIndexService.Shared.TryGetFileSha256(destinationAbsolutePath, out var destinationSha256) &&
+                   string.Equals(destinationSha256, expectedSourceSha256, StringComparison.Ordinal);
         }
 
         private void UpdateImportedStateForFile(string productId, BlmFileRecord file, bool isImported)
+        {
+            UpdateImportedStateForFile(
+                productId,
+                file,
+                isImported ? ImportedStateRowHighlightKind.Imported : ImportedStateRowHighlightKind.None);
+        }
+
+        private void UpdateImportedStateForFile(
+            string productId,
+            BlmFileRecord file,
+            ImportedStateRowHighlightKind importedState)
         {
             var productFileKey = BuildImportedStateProductFileKey(productId, file);
             if (string.IsNullOrWhiteSpace(productFileKey))
@@ -4287,21 +4407,24 @@ namespace com.amari_noa.blm_integration_core.editor
                 return;
             }
 
-            _importedStateByProductFileKey[productFileKey] = isImported;
+            _importedStateByProductFileKey[productFileKey] = importedState;
             if (string.Equals(productId, _activeImportedStateProductId, StringComparison.Ordinal))
             {
                 _activeImportedStatePendingCount = Math.Max(0, _activeImportedStatePendingCount - 1);
-                if (isImported)
+                if (importedState != ImportedStateRowHighlightKind.None)
                 {
                     _activeImportedStateHasImportedFiles = true;
                 }
             }
 
-            RefreshImportedStateVisualForFile(productId, file, isImported);
+            RefreshImportedStateVisualForFile(productId, file, importedState);
             UpdateImportedStateLabel(_detailItem);
         }
 
-        private void RefreshImportedStateVisualForFile(string productId, BlmFileRecord file, bool isImported)
+        private void RefreshImportedStateVisualForFile(
+            string productId,
+            BlmFileRecord file,
+            ImportedStateRowHighlightKind importedState)
         {
             var productFileKey = BuildImportedStateProductFileKey(productId, file);
             if (string.IsNullOrWhiteSpace(productFileKey))
@@ -4311,21 +4434,30 @@ namespace com.amari_noa.blm_integration_core.editor
 
             if (_detailFileRowsByProductFileKey.TryGetValue(productFileKey, out var detailRows))
             {
-                ApplyImportedStateToRowCollection(detailRows, isImported);
+                ApplyImportedStateToRowCollection(
+                    detailRows,
+                    importedState,
+                    allowPartialHighlight: true,
+                    updateTooltip: true);
             }
 
             if (_selectedPanelFileRowsByProductFileKey.TryGetValue(productFileKey, out var selectedRows))
             {
-                ApplyImportedStateToRowCollection(selectedRows, isImported);
+                ApplyImportedStateToRowCollection(
+                    selectedRows,
+                    importedState,
+                    allowPartialHighlight: true,
+                    updateTooltip: true);
             }
         }
 
-        private bool IsFileImportedAndUnchangedByState(BlmItemRecord item, BlmFileRecord file)
+        private ImportedStateRowHighlightKind GetImportedStateForFile(BlmItemRecord item, BlmFileRecord file)
         {
             var key = BuildImportedStateProductFileKey(item?.ProductId, file);
             return !string.IsNullOrWhiteSpace(key) &&
-                   _importedStateByProductFileKey.TryGetValue(key, out var isImported) &&
-                   isImported;
+                   _importedStateByProductFileKey.TryGetValue(key, out var importedState)
+                ? importedState
+                : ImportedStateRowHighlightKind.None;
         }
 
         private bool HasImportedFilesInSessionState(string productId)
@@ -4338,7 +4470,7 @@ namespace com.amari_noa.blm_integration_core.editor
             var prefix = productId + "|";
             foreach (var pair in _importedStateByProductFileKey)
             {
-                if (!pair.Value)
+                if (pair.Value == ImportedStateRowHighlightKind.None)
                 {
                     continue;
                 }
@@ -4425,7 +4557,11 @@ namespace com.amari_noa.blm_integration_core.editor
             row.userData = null;
         }
 
-        private static void ApplyImportedStateToRowCollection(List<VisualElement> rows, bool isImported)
+        private void ApplyImportedStateToRowCollection(
+            List<VisualElement> rows,
+            ImportedStateRowHighlightKind importedState,
+            bool allowPartialHighlight,
+            bool updateTooltip)
         {
             if (rows == null)
             {
@@ -4441,7 +4577,11 @@ namespace com.amari_noa.blm_integration_core.editor
                     continue;
                 }
 
-                ApplyImportedStateRowClass(row, isImported);
+                ApplyImportedStateRowClass(row, importedState, allowPartialHighlight);
+                if (updateTooltip)
+                {
+                    SetRowImportedStateTooltip(row, GetImportedStateTooltip(importedState));
+                }
             }
         }
 
@@ -4467,21 +4607,77 @@ namespace com.amari_noa.blm_integration_core.editor
             rows.Add(row);
         }
 
-        private static void ApplyImportedStateRowClass(VisualElement row, bool isImported)
+        private static void ApplyImportedStateRowClass(
+            VisualElement row,
+            ImportedStateRowHighlightKind importedState,
+            bool allowPartialHighlight)
         {
             if (row == null)
             {
                 return;
             }
 
-            if (isImported)
+            row.RemoveFromClassList(ImportedFileRowClassName);
+            row.RemoveFromClassList(PartiallyImportedFileRowClassName);
+            if (importedState == ImportedStateRowHighlightKind.Imported)
             {
                 row.AddToClassList(ImportedFileRowClassName);
+                return;
             }
-            else
+
+            if (allowPartialHighlight && importedState == ImportedStateRowHighlightKind.PartiallyImported)
             {
-                row.RemoveFromClassList(ImportedFileRowClassName);
+                row.AddToClassList(PartiallyImportedFileRowClassName);
             }
+        }
+
+        private void ApplyImportedStateVisualToFileRow(
+            VisualElement row,
+            ImportedStateRowHighlightKind importedState)
+        {
+            ApplyImportedStateRowClass(row, importedState, allowPartialHighlight: true);
+            SetRowImportedStateTooltip(row, GetImportedStateTooltip(importedState));
+        }
+
+        private void SetRowImportedStateTooltip(VisualElement row, string tooltip)
+        {
+            if (row == null)
+            {
+                return;
+            }
+
+            var normalizedTooltip = tooltip ?? string.Empty;
+            row.tooltip = normalizedTooltip;
+
+            var toggle = row.Q<Toggle>("Toggle");
+            if (toggle != null)
+            {
+                toggle.tooltip = normalizedTooltip;
+            }
+
+            var label = row.Q<Label>("Label");
+            if (label != null)
+            {
+                label.tooltip = normalizedTooltip;
+            }
+
+            var folderFoldout = row.Q<Foldout>("FolderFoldout");
+            if (folderFoldout != null)
+            {
+                folderFoldout.tooltip = normalizedTooltip;
+            }
+        }
+
+        private string GetImportedStateTooltip(ImportedStateRowHighlightKind importedState)
+        {
+            return importedState switch
+            {
+                ImportedStateRowHighlightKind.Imported =>
+                    L("blm.detail.imported_state.tooltip.imported", "Imported"),
+                ImportedStateRowHighlightKind.PartiallyImported =>
+                    L("blm.detail.imported_state.tooltip.partial", "Partially imported"),
+                _ => string.Empty
+            };
         }
 
         private static string BuildImportedStateProductFileKey(string productId, BlmFileRecord file)
@@ -4557,6 +4753,67 @@ namespace com.amari_noa.blm_integration_core.editor
                    set.Contains(path);
         }
 
+        private bool IsImportedStateEvaluationInProgress(string productId)
+        {
+            return !string.IsNullOrWhiteSpace(productId) &&
+                   string.Equals(productId, _activeImportedStateProductId, StringComparison.Ordinal) &&
+                   _activeImportedStatePendingCount > 0;
+        }
+
+        private string BuildImportedStateCheckingLabelText()
+        {
+            var totalCount = _activeImportedStateTotalCount;
+            if (totalCount < 0)
+            {
+                totalCount = 0;
+            }
+
+            var pendingCount = _activeImportedStatePendingCount;
+            if (pendingCount < 0)
+            {
+                pendingCount = 0;
+            }
+            else if (pendingCount > totalCount)
+            {
+                pendingCount = totalCount;
+            }
+
+            var checkedCount = totalCount - pendingCount;
+            var currentProcessingIndex = totalCount <= 0
+                ? 0
+                : Math.Min(totalCount, checkedCount + 1);
+            return string.Format(
+                CultureInfo.InvariantCulture,
+                L("blm.detail.imported_state.checking", "Checking imported files... ({0}/{1})"),
+                currentProcessingIndex,
+                totalCount);
+        }
+
+        private void SetImportedStateLabel(string text, bool visible)
+        {
+            if (_importedStateLabel == null)
+            {
+                return;
+            }
+
+            var normalizedText = text ?? string.Empty;
+            var nextVisibility = visible ? Visibility.Visible : Visibility.Hidden;
+            if (!string.Equals(_importedStateLabel.text ?? string.Empty, normalizedText, StringComparison.Ordinal))
+            {
+                _importedStateLabel.text = normalizedText;
+            }
+
+            if (_importedStateLabel.style.display.value != DisplayStyle.Flex)
+            {
+                _importedStateLabel.style.display = DisplayStyle.Flex;
+            }
+
+            if (_importedStateLabel.style.visibility.value != nextVisibility)
+            {
+                _importedStateLabel.style.visibility = nextVisibility;
+            }
+        }
+
         private void UpdateImportedStateLabel(BlmItemRecord item)
         {
             if (_importedStateLabel == null)
@@ -4564,18 +4821,33 @@ namespace com.amari_noa.blm_integration_core.editor
                 return;
             }
 
-            var hasImportedFiles = false;
             var productId = item?.ProductId ?? string.Empty;
-            if (!string.IsNullOrWhiteSpace(productId))
+            if (string.IsNullOrWhiteSpace(productId))
             {
-                hasImportedFiles = string.Equals(productId, _activeImportedStateProductId, StringComparison.Ordinal)
-                    ? _activeImportedStateHasImportedFiles
-                    : HasImportedFilesInSessionState(productId);
+                SetImportedStateLabel(string.Empty, visible: false);
+                return;
             }
 
-            _importedStateLabel.text = L("blm.detail.imported_state.has_imported_files", "Imported files found");
-            _importedStateLabel.style.display = DisplayStyle.Flex;
-            _importedStateLabel.style.visibility = hasImportedFiles ? Visibility.Visible : Visibility.Hidden;
+            var isCheckingImportedState = IsImportedStateEvaluationInProgress(productId);
+            if (isCheckingImportedState)
+            {
+                SetImportedStateLabel(BuildImportedStateCheckingLabelText(), visible: true);
+                return;
+            }
+
+            var hasImportedFiles = string.Equals(productId, _activeImportedStateProductId, StringComparison.Ordinal)
+                ? _activeImportedStateHasImportedFiles
+                : HasImportedFilesInSessionState(productId);
+
+            if (hasImportedFiles)
+            {
+                SetImportedStateLabel(
+                    L("blm.detail.imported_state.has_imported_files", "Imported files found"),
+                    visible: true);
+                return;
+            }
+
+            SetImportedStateLabel(string.Empty, visible: false);
         }
 
         private void ApplyLocalization()
@@ -4953,6 +5225,13 @@ namespace com.amari_noa.blm_integration_core.editor
             On = 2
         }
 
+        private enum ImportedStateRowHighlightKind
+        {
+            None = 0,
+            Imported = 1,
+            PartiallyImported = 2
+        }
+
         private sealed class DetailFolderTreeNode
         {
             public string Name { get; }
@@ -4972,20 +5251,36 @@ namespace com.amari_noa.blm_integration_core.editor
         private sealed class ImportedStateUnityPackageCheckState
         {
             public ImportedStateCheckWorkItem WorkItem { get; }
-            public IReadOnlyList<string> Guids { get; }
-            public BlmImportedStateCacheEntry CacheEntry { get; }
-            public int NextGuidIndex { get; set; }
-            public bool IsImported { get; set; } = true;
+            public IReadOnlyList<BlmUnityPackageAssetEntry> Entries { get; }
+            public int NextEntryIndex { get; set; }
+            public bool HasImportedEntries { get; set; }
+            public bool HasMissingEntries { get; set; }
+            public Task<bool> ActiveAssetHashComparisonTask { get; set; }
 
             public ImportedStateUnityPackageCheckState(
                 ImportedStateCheckWorkItem workItem,
-                IReadOnlyList<string> guids,
-                BlmImportedStateCacheEntry cacheEntry)
+                IReadOnlyList<BlmUnityPackageAssetEntry> entries)
             {
                 WorkItem = workItem;
-                Guids = guids ?? Array.Empty<string>();
+                Entries = entries ?? Array.Empty<BlmUnityPackageAssetEntry>();
+                NextEntryIndex = 0;
+            }
+        }
+
+        private sealed class ImportedStateNonUnityContentCheckState
+        {
+            public ImportedStateCheckWorkItem WorkItem { get; }
+            public BlmImportedStateCacheEntry CacheEntry { get; }
+            public Task<bool> HashComparisonTask { get; }
+
+            public ImportedStateNonUnityContentCheckState(
+                ImportedStateCheckWorkItem workItem,
+                BlmImportedStateCacheEntry cacheEntry,
+                Task<bool> hashComparisonTask)
+            {
+                WorkItem = workItem;
                 CacheEntry = cacheEntry;
-                NextGuidIndex = 0;
+                HashComparisonTask = hashComparisonTask;
             }
         }
 

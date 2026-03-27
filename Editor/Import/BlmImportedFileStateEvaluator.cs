@@ -6,6 +6,38 @@ using UnityEditor;
 
 namespace com.amari_noa.blm_integration_core.editor
 {
+    internal readonly struct BlmPreparedNonUnityImportedStateCheck
+    {
+        public string Guid { get; }
+        public string SourceFullPath { get; }
+        public long SourceFileSize { get; }
+        public long SourceLastWriteTimeUtcTicks { get; }
+        public string DestinationAssetPath { get; }
+        public string DestinationFullPath { get; }
+        public long DestinationFileSize { get; }
+        public long DestinationLastWriteTimeUtcTicks { get; }
+
+        public BlmPreparedNonUnityImportedStateCheck(
+            string guid,
+            string sourceFullPath,
+            long sourceFileSize,
+            long sourceLastWriteTimeUtcTicks,
+            string destinationAssetPath,
+            string destinationFullPath,
+            long destinationFileSize,
+            long destinationLastWriteTimeUtcTicks)
+        {
+            Guid = guid ?? string.Empty;
+            SourceFullPath = sourceFullPath ?? string.Empty;
+            SourceFileSize = sourceFileSize;
+            SourceLastWriteTimeUtcTicks = sourceLastWriteTimeUtcTicks;
+            DestinationAssetPath = destinationAssetPath ?? string.Empty;
+            DestinationFullPath = destinationFullPath ?? string.Empty;
+            DestinationFileSize = destinationFileSize;
+            DestinationLastWriteTimeUtcTicks = destinationLastWriteTimeUtcTicks;
+        }
+    }
+
     internal sealed class BlmImportedFileStateEvaluator
     {
         private readonly BlmImportIndexService _importIndexService;
@@ -44,8 +76,7 @@ namespace com.amari_noa.blm_integration_core.editor
                 return false;
             }
 
-            var normalizedExtension = NormalizeExtension(file.FileExtension);
-            if (string.Equals(normalizedExtension, ".unitypackage", StringComparison.OrdinalIgnoreCase))
+            if (IsUnityPackageFile(file))
             {
                 return IsUnityPackageImportedAndUnchanged(item, file);
             }
@@ -53,26 +84,98 @@ namespace com.amari_noa.blm_integration_core.editor
             return IsNonUnityImportedAndUnchanged(item, file);
         }
 
-        private bool IsNonUnityImportedAndUnchanged(BlmItemRecord item, BlmFileRecord file)
+        public static bool IsUnityPackageFile(BlmFileRecord file)
         {
-            if (!TryResolveNonUnityGuid(item, file, out var guid))
+            if (file == null)
             {
                 return false;
             }
 
-            return _importIndexService.IsGuidImportedAndUnchangedForProduct(item.ProductId, guid);
+            var normalizedExtension = NormalizeExtension(file.FileExtension);
+            return string.Equals(normalizedExtension, ".unitypackage", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public bool TryPrepareNonUnityImportedStateCheck(
+            BlmItemRecord item,
+            BlmFileRecord file,
+            out BlmPreparedNonUnityImportedStateCheck preparedCheck)
+        {
+            preparedCheck = default;
+            if (item == null || file == null || string.IsNullOrWhiteSpace(item.ProductId) || IsUnityPackageFile(file))
+            {
+                return false;
+            }
+
+            if (!TryResolveNonUnityGuid(item, file, out var guid) ||
+                string.IsNullOrWhiteSpace(guid) ||
+                !_importIndexService.TryGetImportedGuidAssetPathForProduct(item.ProductId, guid, out var destinationAssetPath) ||
+                string.IsNullOrWhiteSpace(destinationAssetPath))
+            {
+                return false;
+            }
+
+            var sourcePath = string.IsNullOrWhiteSpace(file.FullPath)
+                ? (file.FileName ?? string.Empty)
+                : file.FullPath;
+            if (!TryResolveFullPath(sourcePath, out var sourceFullPath) ||
+                !_importIndexService.TryResolveAssetAbsolutePath(destinationAssetPath, out var destinationFullPath) ||
+                !TryGetFileInfoSnapshot(sourceFullPath, out var sourceFileSize, out var sourceLastWriteTimeUtcTicks) ||
+                !TryGetFileInfoSnapshot(destinationFullPath, out var destinationFileSize, out var destinationLastWriteTimeUtcTicks))
+            {
+                return false;
+            }
+
+            preparedCheck = new BlmPreparedNonUnityImportedStateCheck(
+                guid,
+                sourceFullPath,
+                sourceFileSize,
+                sourceLastWriteTimeUtcTicks,
+                destinationAssetPath,
+                destinationFullPath,
+                destinationFileSize,
+                destinationLastWriteTimeUtcTicks);
+            return true;
+        }
+
+        private bool IsNonUnityImportedAndUnchanged(BlmItemRecord item, BlmFileRecord file)
+        {
+            if (!TryPrepareNonUnityImportedStateCheck(item, file, out var preparedCheck))
+            {
+                return false;
+            }
+
+            return _importIndexService.TryAreFilesContentEqual(
+                preparedCheck.SourceFullPath,
+                preparedCheck.DestinationFullPath,
+                out var areEqual) &&
+                   areEqual;
         }
 
         private bool IsUnityPackageImportedAndUnchanged(BlmItemRecord item, BlmFileRecord file)
         {
-            if (!_unityPackageGuidCache.TryGetGuids(file.FullPath, out var guids) || guids == null || guids.Count == 0)
+            if (!_unityPackageGuidCache.TryGetEntries(file.FullPath, out var entries) || entries == null || entries.Count == 0)
             {
                 return false;
             }
 
-            for (var i = 0; i < guids.Count; i++)
+            for (var i = 0; i < entries.Count; i++)
             {
-                if (!_importIndexService.IsGuidImportedAndUnchangedForProduct(item.ProductId, guids[i]))
+                var entry = entries[i];
+                if (string.IsNullOrWhiteSpace(entry.Guid) ||
+                    !_importIndexService.TryGetImportedGuidAssetPathForProduct(item.ProductId, entry.Guid, out var destinationAssetPath))
+                {
+                    return false;
+                }
+
+                if (!entry.HasAssetData)
+                {
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(entry.AssetSha256) ||
+                    !_importIndexService.TryResolveAssetAbsolutePath(destinationAssetPath, out var destinationAbsolutePath) ||
+                    !_importIndexService.TryGetFileSha256(destinationAbsolutePath, out var destinationSha256) ||
+                    !string.Equals(destinationSha256, entry.AssetSha256, StringComparison.Ordinal))
                 {
                     return false;
                 }
@@ -104,13 +207,16 @@ namespace com.amari_noa.blm_integration_core.editor
                 }
             }
 
-            var sourceFileName = Path.GetFileName(file.FullPath ?? file.FileName ?? string.Empty);
+            var sourceFilePath = string.IsNullOrWhiteSpace(file.FullPath)
+                ? (file.FileName ?? string.Empty)
+                : file.FullPath;
+            var sourceFileName = Path.GetFileName(sourceFilePath);
             if (string.IsNullOrWhiteSpace(sourceFileName))
             {
                 return false;
             }
 
-            return _importIndexService.TryFindUniqueGuidByProductAndFileName(item.ProductId, sourceFileName, out guid);
+            return _importIndexService.TryFindUniqueGuidByProductAndFileName(item.ProductId, sourceFilePath, out guid);
         }
 
         private static string NormalizeExtension(string extension)
@@ -147,6 +253,53 @@ namespace com.amari_noa.blm_integration_core.editor
                 (c >= 'a' && c <= 'f'))
                 ? normalized
                 : string.Empty;
+        }
+
+        private static bool TryResolveFullPath(string path, out string fullPath)
+        {
+            fullPath = string.Empty;
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return false;
+            }
+
+            try
+            {
+                fullPath = Path.GetFullPath(path);
+            }
+            catch
+            {
+                fullPath = path;
+            }
+
+            return !string.IsNullOrWhiteSpace(fullPath);
+        }
+
+        private static bool TryGetFileInfoSnapshot(string fullPath, out long fileSize, out long lastWriteTimeUtcTicks)
+        {
+            fileSize = 0L;
+            lastWriteTimeUtcTicks = 0L;
+            if (string.IsNullOrWhiteSpace(fullPath))
+            {
+                return false;
+            }
+
+            try
+            {
+                var info = new FileInfo(fullPath);
+                if (!info.Exists || (info.Attributes & FileAttributes.Directory) != 0)
+                {
+                    return false;
+                }
+
+                fileSize = info.Length;
+                lastWriteTimeUtcTicks = info.LastWriteTimeUtc.Ticks;
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 }
