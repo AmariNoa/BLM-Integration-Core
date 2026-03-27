@@ -19,6 +19,8 @@ namespace com.amari_noa.blm_integration_core.editor
 
         private readonly object _syncRoot = new object();
         private readonly string _indexPath;
+        private readonly Dictionary<string, HashSet<string>> _productGuidSetCache =
+            new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
         private BlmImportIndexDocument _document = new BlmImportIndexDocument();
         private bool _loaded;
         private bool _dirty;
@@ -46,12 +48,7 @@ namespace com.amari_noa.blm_integration_core.editor
 
             lock (_syncRoot)
             {
-                if (!_document.Products.TryGetValue(normalizedProductId, out var productEntry))
-                {
-                    return false;
-                }
-
-                if (!Contains(productEntry.Guids, normalizedGuid, StringComparer.Ordinal))
+                if (!ContainsProductGuidUnsafe(normalizedProductId, normalizedGuid))
                 {
                     return false;
                 }
@@ -637,6 +634,7 @@ namespace com.amari_noa.blm_integration_core.editor
 
             _document.Products = normalizedProducts;
             _document.GuidOwners = normalizedOwners;
+            _productGuidSetCache.Clear();
             return changed;
         }
 
@@ -786,6 +784,31 @@ namespace com.amari_noa.blm_integration_core.editor
             }
 
             return false;
+        }
+
+        private bool ContainsProductGuidUnsafe(string normalizedProductId, string normalizedGuid)
+        {
+            if (string.IsNullOrWhiteSpace(normalizedProductId) || string.IsNullOrWhiteSpace(normalizedGuid))
+            {
+                return false;
+            }
+
+            if (!_productGuidSetCache.TryGetValue(normalizedProductId, out var guidSet) || guidSet == null)
+            {
+                if (!_document.Products.TryGetValue(normalizedProductId, out var productEntry) ||
+                    productEntry?.Guids == null ||
+                    productEntry.Guids.Count == 0)
+                {
+                    return false;
+                }
+
+                guidSet = new HashSet<string>(
+                    productEntry.Guids.Where(guid => !string.IsNullOrWhiteSpace(guid)),
+                    StringComparer.Ordinal);
+                _productGuidSetCache[normalizedProductId] = guidSet;
+            }
+
+            return guidSet.Contains(normalizedGuid);
         }
 
         private static string BuildIndexPath()

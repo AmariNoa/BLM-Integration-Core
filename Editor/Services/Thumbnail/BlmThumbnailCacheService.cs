@@ -19,7 +19,9 @@ namespace com.amari_noa.blm_integration_core.editor
         private readonly Dictionary<string, LinkedListNode<string>> _memoryCacheNodes = new Dictionary<string, LinkedListNode<string>>(StringComparer.Ordinal);
         private readonly LinkedList<string> _memoryCacheLru = new LinkedList<string>();
         private readonly Dictionary<string, Task<string>> _inflightDownloads = new Dictionary<string, Task<string>>(StringComparer.Ordinal);
+        private readonly Dictionary<string, string> _diskCachePathByHash = new Dictionary<string, string>(StringComparer.Ordinal);
         private readonly SemaphoreSlim _requestSemaphore = new SemaphoreSlim(BlmConstants.ThumbnailRequestConcurrency, BlmConstants.ThumbnailRequestConcurrency);
+        private bool _diskCachePathIndexLoaded;
         private bool _settingsLoaded;
 
         public int MaxEntries { get; private set; }
@@ -30,6 +32,7 @@ namespace com.amari_noa.blm_integration_core.editor
             CacheRootPath = BlmConstants.GetThumbnailCacheRootPath();
             Directory.CreateDirectory(CacheRootPath);
             MaxEntries = GetClampedMaxEntries(BlmConstants.ThumbnailMemoryCacheMaxEntriesDefault);
+            _ = Task.Run(EnsureDiskCachePathIndexLoaded);
         }
 
         public void LoadSettingsFromEditorPrefs()
@@ -87,6 +90,11 @@ namespace com.amari_noa.blm_integration_core.editor
                 }
             }
 
+            if (deleted > 0)
+            {
+                InvalidateDiskCachePathIndex();
+            }
+
             cleanupStopwatch.Stop();
             PerfLog($"CleanupExpiredCacheFiles completed in {cleanupStopwatch.ElapsedMilliseconds} ms. scanned={scanned}, deleted={deleted}");
         }
@@ -103,6 +111,8 @@ namespace com.amari_noa.blm_integration_core.editor
                 TryDeleteFile(filePath);
             }
 
+            InvalidateDiskCachePathIndex();
+
             lock (_syncRoot)
             {
                 foreach (var texture in _memoryCache.Values)
@@ -116,7 +126,7 @@ namespace com.amari_noa.blm_integration_core.editor
             }
         }
 
-        public async Task<Texture2D> GetTextureAsync(BlmItemRecord itemRecord)
+        public async Task<Texture2D> GetTextureAsync(BlmItemRecord itemRecord, CancellationToken cancellationToken = default)
         {
             if (itemRecord == null)
             {
@@ -125,23 +135,45 @@ namespace com.amari_noa.blm_integration_core.editor
 
             var totalStopwatch = System.Diagnostics.Stopwatch.StartNew();
             var productId = itemRecord.ProductId ?? string.Empty;
-            var resolvedPath = await ResolveThumbnailPathAsync(itemRecord.ThumbnailPath, itemRecord.ThumbnailUrl, productId);
-            if (!string.IsNullOrWhiteSpace(resolvedPath))
+            try
             {
-                itemRecord.ThumbnailPath = resolvedPath;
-            }
+                cancellationToken.ThrowIfCancellationRequested();
+                var resolvedPath = await ResolveThumbnailPathAsync(
+                    itemRecord.ThumbnailPath,
+                    itemRecord.ThumbnailUrl,
+                    productId,
+                    cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!string.IsNullOrWhiteSpace(resolvedPath))
+                {
+                    itemRecord.ThumbnailPath = resolvedPath;
+                }
 
-            var texture = await LoadTextureFromPathAsync(resolvedPath, productId);
-            totalStopwatch.Stop();
-            PerfLog(
-                $"GetTextureAsync completed in {totalStopwatch.ElapsedMilliseconds} ms. " +
-                $"productId='{productId}', hasTexture={((texture != null).ToString().ToLowerInvariant())}, path='{Path.GetFileName(resolvedPath)}'");
-            return texture;
+                var texture = await LoadTextureFromPathAsync(resolvedPath, productId, cancellationToken);
+                totalStopwatch.Stop();
+                PerfLog(
+                    $"GetTextureAsync completed in {totalStopwatch.ElapsedMilliseconds} ms. " +
+                    $"productId='{productId}', hasTexture={((texture != null).ToString().ToLowerInvariant())}, path='{Path.GetFileName(resolvedPath)}'");
+                return texture;
+            }
+            catch (OperationCanceledException)
+            {
+                totalStopwatch.Stop();
+                PerfLog(
+                    $"GetTextureAsync canceled in {totalStopwatch.ElapsedMilliseconds} ms. " +
+                    $"productId='{productId}'");
+                return null;
+            }
         }
 
-        private async Task<string> ResolveThumbnailPathAsync(string thumbnailPath, string thumbnailUrl, string productId)
+        private async Task<string> ResolveThumbnailPathAsync(
+            string thumbnailPath,
+            string thumbnailUrl,
+            string productId,
+            CancellationToken cancellationToken)
         {
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            cancellationToken.ThrowIfCancellationRequested();
             if (!string.IsNullOrWhiteSpace(thumbnailPath) && File.Exists(thumbnailPath))
             {
                 if (!IsExpired(thumbnailPath))
@@ -154,8 +186,10 @@ namespace com.amari_noa.blm_integration_core.editor
                 }
 
                 TryDeleteFile(thumbnailPath);
+                RemoveDiskCachePathByPath(thumbnailPath);
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
             if (string.IsNullOrWhiteSpace(thumbnailUrl))
             {
                 stopwatch.Stop();
@@ -179,6 +213,7 @@ namespace com.amari_noa.blm_integration_core.editor
                 }
 
                 TryDeleteFile(cachedPath);
+                RemoveDiskCachePathByHash(hash);
             }
 
             Task<string> downloadTask;
@@ -192,14 +227,15 @@ namespace com.amari_noa.blm_integration_core.editor
                 }
                 else
                 {
-                    downloadTask = DownloadThumbnailInternalAsync(hash, thumbnailUrl, productId);
+                    downloadTask = DownloadThumbnailInternalAsync(hash, thumbnailUrl, productId, CancellationToken.None);
                     _inflightDownloads[hash] = downloadTask;
                 }
             }
 
             try
             {
-                var downloadPath = await downloadTask;
+                cancellationToken.ThrowIfCancellationRequested();
+                var downloadPath = await WaitForTaskWithCancellation(downloadTask, cancellationToken);
                 stopwatch.Stop();
                 PerfLog(
                     $"Thumbnail path resolved in {stopwatch.ElapsedMilliseconds} ms. " +
@@ -218,20 +254,28 @@ namespace com.amari_noa.blm_integration_core.editor
             }
         }
 
-        private async Task<string> DownloadThumbnailInternalAsync(string hash, string thumbnailUrl, string productId)
+        private async Task<string> DownloadThumbnailInternalAsync(
+            string hash,
+            string thumbnailUrl,
+            string productId,
+            CancellationToken cancellationToken)
         {
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             PerfLog($"Thumbnail download start. productId='{productId}', hash='{hash}'");
-            await _requestSemaphore.WaitAsync();
+            var semaphoreEntered = false;
             try
             {
+                await _requestSemaphore.WaitAsync(cancellationToken);
+                semaphoreEntered = true;
+                cancellationToken.ThrowIfCancellationRequested();
                 var basePath = Path.Combine(CacheRootPath, hash);
                 DeleteHashVariants(hash);
 
                 using var request = UnityWebRequest.Get(thumbnailUrl);
                 request.timeout = BlmConstants.ThumbnailRequestTimeoutSeconds;
 
-                await SendRequestAsync(request);
+                await SendRequestAsync(request, cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
                 if (request.result is UnityWebRequest.Result.ConnectionError or UnityWebRequest.Result.ProtocolError)
                 {
                     stopwatch.Stop();
@@ -264,11 +308,20 @@ namespace com.amari_noa.blm_integration_core.editor
                 }
 
                 File.Move(tempPath, finalPath);
+                RegisterDiskCachePathByHash(hash, finalPath);
                 stopwatch.Stop();
                 PerfLog(
                     $"Thumbnail downloaded and cached in {stopwatch.ElapsedMilliseconds} ms. " +
                     $"productId='{productId}', hash='{hash}', bytes={bytes.Length}, file='{Path.GetFileName(finalPath)}'");
                 return finalPath;
+            }
+            catch (OperationCanceledException)
+            {
+                stopwatch.Stop();
+                PerfLog(
+                    $"Thumbnail download canceled in {stopwatch.ElapsedMilliseconds} ms. " +
+                    $"productId='{productId}', hash='{hash}'");
+                return string.Empty;
             }
             catch (Exception ex)
             {
@@ -280,20 +333,27 @@ namespace com.amari_noa.blm_integration_core.editor
             }
             finally
             {
-                _requestSemaphore.Release();
+                if (semaphoreEntered)
+                {
+                    _requestSemaphore.Release();
+                }
             }
         }
 
-        private static async Task SendRequestAsync(UnityWebRequest request)
+        private static async Task SendRequestAsync(UnityWebRequest request, CancellationToken cancellationToken)
         {
             var operation = request.SendWebRequest();
             while (!operation.isDone)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 await Task.Yield();
             }
         }
 
-        private async Task<Texture2D> LoadTextureFromPathAsync(string path, string productId)
+        private async Task<Texture2D> LoadTextureFromPathAsync(
+            string path,
+            string productId,
+            CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
             {
@@ -311,14 +371,18 @@ namespace com.amari_noa.blm_integration_core.editor
                 }
             }
 
+            Texture2D texture = null;
             try
             {
                 var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-                var bytes = await Task.Run(() => File.ReadAllBytes(path));
-                var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                cancellationToken.ThrowIfCancellationRequested();
+                var bytes = await Task.Run(() => File.ReadAllBytes(path), cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+                texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
                 if (!ImageConversion.LoadImage(texture, bytes, true))
                 {
                     DestroyTexture(texture);
+                    texture = null;
                     stopwatch.Stop();
                     PerfLog(
                         $"Cached thumbnail load failed (decode) in {stopwatch.ElapsedMilliseconds} ms. " +
@@ -339,6 +403,7 @@ namespace com.amari_noa.blm_integration_core.editor
                         return existing;
                     }
 
+                    cancellationToken.ThrowIfCancellationRequested();
                     AddTextureToCache(path, texture);
                 }
 
@@ -348,8 +413,15 @@ namespace com.amari_noa.blm_integration_core.editor
                     $"productId='{productId}', bytes={bytes.Length}, file='{Path.GetFileName(path)}'");
                 return texture;
             }
+            catch (OperationCanceledException)
+            {
+                DestroyTexture(texture);
+                PerfLog($"Cached thumbnail load canceled. productId='{productId}', file='{Path.GetFileName(path)}'");
+                return null;
+            }
             catch
             {
+                DestroyTexture(texture);
                 PerfLog($"Cached thumbnail load exception. productId='{productId}', file='{Path.GetFileName(path)}'");
                 return null;
             }
@@ -370,18 +442,33 @@ namespace com.amari_noa.blm_integration_core.editor
 
         private string FindCachedFileByHash(string hash)
         {
-            var exactPath = Path.Combine(CacheRootPath, hash);
-            if (File.Exists(exactPath))
+            if (string.IsNullOrWhiteSpace(hash))
             {
-                return exactPath;
+                return string.Empty;
             }
 
-            var matches = Directory.EnumerateFiles(CacheRootPath, $"{hash}.*").ToArray();
-            return matches.Length > 0 ? matches[0] : string.Empty;
+            EnsureDiskCachePathIndexLoaded();
+            string indexedPath;
+            lock (_syncRoot)
+            {
+                if (!_diskCachePathByHash.TryGetValue(hash, out indexedPath))
+                {
+                    return string.Empty;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(indexedPath) && File.Exists(indexedPath))
+            {
+                return indexedPath;
+            }
+
+            RemoveDiskCachePathByHash(hash);
+            return string.Empty;
         }
 
         private void DeleteHashVariants(string hash)
         {
+            RemoveDiskCachePathByHash(hash);
             var directPath = Path.Combine(CacheRootPath, hash);
             if (File.Exists(directPath))
             {
@@ -392,6 +479,118 @@ namespace com.amari_noa.blm_integration_core.editor
             {
                 TryDeleteFile(path);
             }
+        }
+
+        private void EnsureDiskCachePathIndexLoaded()
+        {
+            lock (_syncRoot)
+            {
+                if (_diskCachePathIndexLoaded)
+                {
+                    return;
+                }
+
+                _diskCachePathByHash.Clear();
+                if (Directory.Exists(CacheRootPath))
+                {
+                    foreach (var filePath in Directory.EnumerateFiles(CacheRootPath))
+                    {
+                        if (!TryExtractDiskCacheHash(filePath, out var hash))
+                        {
+                            continue;
+                        }
+
+                        _diskCachePathByHash[hash] = filePath;
+                    }
+                }
+
+                _diskCachePathIndexLoaded = true;
+            }
+        }
+
+        private void InvalidateDiskCachePathIndex()
+        {
+            lock (_syncRoot)
+            {
+                _diskCachePathByHash.Clear();
+                _diskCachePathIndexLoaded = false;
+            }
+        }
+
+        private void RegisterDiskCachePathByHash(string hash, string filePath)
+        {
+            if (string.IsNullOrWhiteSpace(hash) || string.IsNullOrWhiteSpace(filePath))
+            {
+                return;
+            }
+
+            lock (_syncRoot)
+            {
+                _diskCachePathByHash[hash] = filePath;
+                _diskCachePathIndexLoaded = true;
+            }
+        }
+
+        private void RemoveDiskCachePathByHash(string hash)
+        {
+            if (string.IsNullOrWhiteSpace(hash))
+            {
+                return;
+            }
+
+            lock (_syncRoot)
+            {
+                _diskCachePathByHash.Remove(hash);
+            }
+        }
+
+        private void RemoveDiskCachePathByPath(string filePath)
+        {
+            if (!TryExtractDiskCacheHash(filePath, out var hash))
+            {
+                return;
+            }
+
+            RemoveDiskCachePathByHash(hash);
+        }
+
+        private static bool TryExtractDiskCacheHash(string filePath, out string hash)
+        {
+            hash = string.Empty;
+            if (string.IsNullOrWhiteSpace(filePath))
+            {
+                return false;
+            }
+
+            var fileName = Path.GetFileName(filePath);
+            if (string.IsNullOrWhiteSpace(fileName))
+            {
+                return false;
+            }
+
+            var dotIndex = fileName.IndexOf('.');
+            var candidateHash = dotIndex > 0
+                ? fileName.Substring(0, dotIndex)
+                : fileName;
+            if (candidateHash.Length != 64)
+            {
+                return false;
+            }
+
+            for (var i = 0; i < candidateHash.Length; i++)
+            {
+                var c = candidateHash[i];
+                var isDigit = c >= '0' && c <= '9';
+                var isLowerHex = c >= 'a' && c <= 'f';
+                var isUpperHex = c >= 'A' && c <= 'F';
+                if (!isDigit && !isLowerHex && !isUpperHex)
+                {
+                    return false;
+                }
+            }
+
+            hash = candidateHash.ToLowerInvariant();
+            return true;
         }
 
         private static string ResolveFileExtension(string contentType, string url)
@@ -475,6 +674,31 @@ namespace com.amari_noa.blm_integration_core.editor
             {
                 return false;
             }
+        }
+
+        private static async Task<T> WaitForTaskWithCancellation<T>(Task<T> task, CancellationToken cancellationToken)
+        {
+            if (task == null)
+            {
+                return default;
+            }
+
+            if (!cancellationToken.CanBeCanceled)
+            {
+                return await task;
+            }
+
+            var cancellationSignal = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using (cancellationToken.Register(() => cancellationSignal.TrySetResult(true)))
+            {
+                var completedTask = await Task.WhenAny(task, cancellationSignal.Task);
+                if (ReferenceEquals(completedTask, task))
+                {
+                    return await task;
+                }
+            }
+
+            throw new OperationCanceledException(cancellationToken);
         }
 
         private int GetClampedMaxEntries(int requested)
