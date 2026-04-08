@@ -100,16 +100,48 @@ namespace com.amari_noa.blm_integration_core.editor
             BlmFileRecord file,
             out BlmPreparedNonUnityImportedStateCheck preparedCheck)
         {
+            return TryPrepareNonUnityImportedStateCheckInternal(
+                item,
+                file,
+                out preparedCheck,
+                readOnly: false);
+        }
+
+        public bool TryPrepareNonUnityImportedStateCheckReadOnly(
+            BlmItemRecord item,
+            BlmFileRecord file,
+            out BlmPreparedNonUnityImportedStateCheck preparedCheck)
+        {
+            return TryPrepareNonUnityImportedStateCheckInternal(
+                item,
+                file,
+                out preparedCheck,
+                readOnly: true);
+        }
+
+        private bool TryPrepareNonUnityImportedStateCheckInternal(
+            BlmItemRecord item,
+            BlmFileRecord file,
+            out BlmPreparedNonUnityImportedStateCheck preparedCheck,
+            bool readOnly)
+        {
             preparedCheck = default;
             if (item == null || file == null || string.IsNullOrWhiteSpace(item.ProductId) || IsUnityPackageFile(file))
             {
                 return false;
             }
 
-            if (!TryResolveNonUnityGuid(item, file, out var guid) ||
-                string.IsNullOrWhiteSpace(guid) ||
-                !_importIndexService.TryGetImportedGuidAssetPathForProduct(item.ProductId, guid, out var destinationAssetPath) ||
-                string.IsNullOrWhiteSpace(destinationAssetPath))
+            if (!TryResolveNonUnityGuid(item, file, out var guid, readOnly) ||
+                string.IsNullOrWhiteSpace(guid))
+            {
+                return false;
+            }
+
+            string destinationAssetPath;
+            var hasDestinationAssetPath = readOnly
+                ? _importIndexService.TryGetImportedGuidAssetPathForProductReadOnly(item.ProductId, guid, out destinationAssetPath)
+                : _importIndexService.TryGetImportedGuidAssetPathForProduct(item.ProductId, guid, out destinationAssetPath);
+            if (!hasDestinationAssetPath || string.IsNullOrWhiteSpace(destinationAssetPath))
             {
                 return false;
             }
@@ -184,7 +216,7 @@ namespace com.amari_noa.blm_integration_core.editor
             return true;
         }
 
-        private bool TryResolveNonUnityGuid(BlmItemRecord item, BlmFileRecord file, out string guid)
+        private bool TryResolveNonUnityGuid(BlmItemRecord item, BlmFileRecord file, out string guid, bool readOnly = false)
         {
             guid = string.Empty;
             if (item == null || file == null)
@@ -216,7 +248,9 @@ namespace com.amari_noa.blm_integration_core.editor
                 return false;
             }
 
-            return _importIndexService.TryFindUniqueGuidByProductAndFileName(item.ProductId, sourceFilePath, out guid);
+            return readOnly
+                ? _importIndexService.TryFindUniqueGuidByProductAndFileNameReadOnly(item.ProductId, sourceFilePath, out guid)
+                : _importIndexService.TryFindUniqueGuidByProductAndFileName(item.ProductId, sourceFilePath, out guid);
         }
 
         private static string NormalizeExtension(string extension)

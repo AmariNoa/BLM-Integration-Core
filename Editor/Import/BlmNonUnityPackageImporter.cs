@@ -14,7 +14,8 @@ namespace com.amari_noa.blm_integration_core.editor
         public NonUnityImportResult Import(
             BlmImportRequestItem item,
             BlmPickerContext context,
-            ISet<string> batchDestinationPaths)
+            ISet<string> batchDestinationPaths,
+            bool deferAssetImport = false)
         {
             if (item == null || string.IsNullOrWhiteSpace(item.SourcePath))
             {
@@ -49,7 +50,11 @@ namespace com.amari_noa.blm_integration_core.editor
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(destinationAbsolutePath) ?? string.Empty);
                 File.Copy(item.SourcePath, destinationAbsolutePath, shouldOverwrite);
-                AssetDatabase.ImportAsset(destinationAssetPath, ImportAssetOptions.ForceSynchronousImport | ImportAssetOptions.ForceUpdate);
+                if (!deferAssetImport)
+                {
+                    AssetDatabase.ImportAsset(destinationAssetPath, ImportAssetOptions.ForceSynchronousImport | ImportAssetOptions.ForceUpdate);
+                }
+
                 return NonUnityImportResult.Completed(destinationAssetPath, destinationWasPreExisting);
             }
             catch (Exception ex)

@@ -4,12 +4,14 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using com.amari_noa.unitypackage_pipeline_core.editor;
+using UnityEditor;
 using UnityEngine;
 
 namespace com.amari_noa.blm_integration_core.editor
 {
     public sealed class BlmImportProcessor : IBlmImportProcessorGateway, IBlmDestinationAssetPathUpdater
     {
+        private const int NonUnityImportsPerFrame = 32;
         private readonly object _syncRoot = new object();
         private readonly Dictionary<string, BlmImportRequestItem> _trackedItems = new Dictionary<string, BlmImportRequestItem>(StringComparer.OrdinalIgnoreCase);
         private readonly BlmImportIndexService _importIndexService = BlmImportIndexService.Shared;
@@ -18,6 +20,7 @@ namespace com.amari_noa.blm_integration_core.editor
 
         public event Action<BlmImportBatchResultContext> ImportBatchCompleted;
         public event Action<string, IReadOnlyList<BlmImportRequestItem>> ImportQueueUpdated;
+        public event Action<BlmImportQueueProgressContext> ImportQueueProgressed;
 
         public void Execute(BlmImportBatchRequest request, BlmPickerContext context)
         {
@@ -49,6 +52,8 @@ namespace com.amari_noa.blm_integration_core.editor
 
         private async Task ExecuteInternalAsync(BlmImportBatchRequest request, BlmPickerContext context)
         {
+            await Task.Yield();
+
             var result = new BlmImportBatchResultContext();
             if (request != null)
             {
@@ -82,18 +87,30 @@ namespace com.amari_noa.blm_integration_core.editor
 
             RegisterTrackedItems(request);
             var remainingQueue = request.Items?.ToList() ?? new List<BlmImportRequestItem>();
-            RaiseImportQueueUpdated(request.BatchId, remainingQueue);
+            var totalCount = remainingQueue.Count;
+            var processedCount = 0;
+            RaiseImportQueueProgress(request.BatchId, processedCount, remainingQueue.Count, totalCount);
 
             var importer = new BlmNonUnityPackageImporter();
             var batchDestinations = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var nonUnityImportsProcessedInCurrentFrame = 0;
+            var isAssetEditing = false;
+            var pipelineService = context.UnityPackageImportPipelineService;
+            var previousPreImportAnalysisMode = pipelineService.PreImportAnalysisMode;
+            var previousQuietMode = pipelineService.QuietMode;
+            var resolveCache = new BlmImportIndexAssetResolveCache();
 
             try
             {
+                pipelineService.PreImportAnalysisMode = AmariUnityPackagePreImportAnalysisMode.Skip;
+                pipelineService.QuietMode = true;
+
                 foreach (var item in request.Items)
                 {
                     var ext = GetExtension(item.SourcePath);
                     if (string.Equals(ext, ".unitypackage", StringComparison.Ordinal))
                     {
+                        EndAssetEditingIfNeeded(ref isAssetEditing);
                         var unityResult = await ExecuteUnityPackageImportAsync(item, request.BatchId, context);
                         if (!unityResult.IsSuccess)
                         {
@@ -101,7 +118,8 @@ namespace com.amari_noa.blm_integration_core.editor
                             result.ImportStatus = unityResult.Status;
                             result.ErrorMessage = unityResult.ErrorMessage;
                             RemoveFirstRemainingQueueItem(remainingQueue);
-                            RaiseImportQueueUpdated(request.BatchId, remainingQueue);
+                            processedCount++;
+                            RaiseImportQueueProgress(request.BatchId, processedCount, remainingQueue.Count, totalCount);
                             break;
                         }
 
@@ -109,24 +127,57 @@ namespace com.amari_noa.blm_integration_core.editor
                             item,
                             BlmImportedItemKind.UnityPackage,
                             destinationWasPreExisting: true,
-                            isSkipped: false);
+                            isSkipped: false,
+                            resolveCache);
                         result.SucceededItems.Add(item);
                         RemoveFirstRemainingQueueItem(remainingQueue);
-                        RaiseImportQueueUpdated(request.BatchId, remainingQueue);
+                        processedCount++;
+                        RaiseImportQueueProgress(request.BatchId, processedCount, remainingQueue.Count, totalCount);
+                        nonUnityImportsProcessedInCurrentFrame = 0;
                         continue;
                     }
 
-                    var nonUnityResult = importer.Import(item, context, batchDestinations);
+                    if (nonUnityImportsProcessedInCurrentFrame >= NonUnityImportsPerFrame)
+                    {
+                        EndAssetEditingIfNeeded(ref isAssetEditing);
+                        nonUnityImportsProcessedInCurrentFrame = 0;
+                        await Task.Yield();
+                    }
+
+                    var nonUnityResult = importer.Import(item, context, batchDestinations, deferAssetImport: true);
                     if (!nonUnityResult.IsSuccess)
                     {
                         result.FailedItems.Add(item);
                         result.ImportStatus = AmariUnityPackagePipelineOperationStatus.Failed;
                         result.ErrorMessage = nonUnityResult.ErrorMessage;
                         RemoveFirstRemainingQueueItem(remainingQueue);
-                        RaiseImportQueueUpdated(request.BatchId, remainingQueue);
+                        processedCount++;
+                        RaiseImportQueueProgress(request.BatchId, processedCount, remainingQueue.Count, totalCount);
                         break;
                     }
 
+                    if (!nonUnityResult.IsSkipped && !string.IsNullOrWhiteSpace(nonUnityResult.DestinationAssetPath))
+                    {
+                        BeginAssetEditingIfNeeded(ref isAssetEditing);
+                        try
+                        {
+                            AssetDatabase.ImportAsset(
+                                nonUnityResult.DestinationAssetPath,
+                                ImportAssetOptions.ForceSynchronousImport | ImportAssetOptions.ForceUpdate);
+                        }
+                        catch (Exception importEx)
+                        {
+                            result.FailedItems.Add(item);
+                            result.ImportStatus = AmariUnityPackagePipelineOperationStatus.Failed;
+                            result.ErrorMessage = importEx.Message;
+                            RemoveFirstRemainingQueueItem(remainingQueue);
+                            processedCount++;
+                            RaiseImportQueueProgress(request.BatchId, processedCount, remainingQueue.Count, totalCount);
+                            break;
+                        }
+                    }
+
+                    nonUnityImportsProcessedInCurrentFrame++;
                     var destinationPaths = string.IsNullOrWhiteSpace(nonUnityResult.DestinationAssetPath)
                         ? Array.Empty<string>()
                         : new[] { nonUnityResult.DestinationAssetPath };
@@ -139,10 +190,12 @@ namespace com.amari_noa.blm_integration_core.editor
                         item,
                         BlmImportedItemKind.NonUnityPackage,
                         nonUnityResult.DestinationWasPreExisting,
-                        nonUnityResult.IsSkipped);
+                        nonUnityResult.IsSkipped,
+                        resolveCache);
                     result.SucceededItems.Add(item);
                     RemoveFirstRemainingQueueItem(remainingQueue);
-                    RaiseImportQueueUpdated(request.BatchId, remainingQueue);
+                    processedCount++;
+                    RaiseImportQueueProgress(request.BatchId, processedCount, remainingQueue.Count, totalCount);
                 }
             }
             catch (Exception ex)
@@ -152,7 +205,11 @@ namespace com.amari_noa.blm_integration_core.editor
             }
             finally
             {
+                EndAssetEditingIfNeeded(ref isAssetEditing);
+                pipelineService.PreImportAnalysisMode = previousPreImportAnalysisMode;
+                pipelineService.QuietMode = previousQuietMode;
                 UnregisterTrackedItems(request);
+                _importIndexService.FlushPendingSaves();
             }
 
             if (result.ImportStatus == AmariUnityPackagePipelineOperationStatus.None)
@@ -171,6 +228,28 @@ namespace com.amari_noa.blm_integration_core.editor
             }
 
             remainingQueue.RemoveAt(0);
+        }
+
+        private static void BeginAssetEditingIfNeeded(ref bool isAssetEditing)
+        {
+            if (isAssetEditing)
+            {
+                return;
+            }
+
+            AssetDatabase.StartAssetEditing();
+            isAssetEditing = true;
+        }
+
+        private static void EndAssetEditingIfNeeded(ref bool isAssetEditing)
+        {
+            if (!isAssetEditing)
+            {
+                return;
+            }
+
+            AssetDatabase.StopAssetEditing();
+            isAssetEditing = false;
         }
 
         private async Task<UnityPackageImportOutcome> ExecuteUnityPackageImportAsync(
@@ -281,18 +360,29 @@ namespace com.amari_noa.blm_integration_core.editor
             }
         }
 
-        private void RaiseImportQueueUpdated(string batchId, IReadOnlyList<BlmImportRequestItem> remainingItems)
+        private void RaiseImportQueueProgress(string batchId, int processedCount, int remainingCount, int totalCount)
         {
             try
             {
-                var snapshot = remainingItems?
-                    .Where(item => item != null)
-                    .ToArray() ?? Array.Empty<BlmImportRequestItem>();
-                ImportQueueUpdated?.Invoke(batchId ?? string.Empty, snapshot);
+                var normalizedBatchId = batchId ?? string.Empty;
+                var normalizedProcessedCount = Math.Max(0, processedCount);
+                var normalizedRemainingCount = Math.Max(0, remainingCount);
+                var normalizedTotalCount = Math.Max(normalizedProcessedCount + normalizedRemainingCount, totalCount);
+
+                ImportQueueProgressed?.Invoke(new BlmImportQueueProgressContext(
+                    normalizedBatchId,
+                    normalizedProcessedCount,
+                    normalizedRemainingCount,
+                    normalizedTotalCount));
+
+                if (ImportQueueUpdated != null)
+                {
+                    ImportQueueUpdated.Invoke(normalizedBatchId, Array.Empty<BlmImportRequestItem>());
+                }
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[BLM Integration Core] ImportQueueUpdated callback failed: {ex.Message}");
+                Debug.LogError($"[BLM Integration Core] ImportQueue progress callback failed: {ex.Message}");
             }
         }
 

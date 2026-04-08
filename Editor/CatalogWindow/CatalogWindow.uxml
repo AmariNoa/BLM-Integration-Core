@@ -1,6 +1,6 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
     <Style src="project://database/Packages/com.amari-noa.blm-integration-core/Editor/CatalogWindow/CatalogWindow.uss?fileID=7433441132597879392&amp;guid=8e2c2371a5ec80f489e384dae3303c0c&amp;type=3#CatalogWindow" />
-    <ui:VisualElement style="flex-grow: 1; flex-direction: row; align-items: stretch;">
+    <ui:VisualElement style="flex-grow: 1; flex-direction: row; align-items: stretch; position: relative;">
         <ui:VisualElement name="LeftPanel" style="flex-grow: 1; max-width: 300px; min-width: 300px; padding-top: 8px; padding-right: 8px; padding-bottom: 8px; padding-left: 8px;">
             <ui:VisualElement style="flex-grow: 1; max-height: 96px; min-height: 96px;">
                 <ui:DropdownField name="DisplayModeField" />
@@ -134,6 +134,12 @@
                 <ui:VisualElement style="flex-grow: 1; justify-content: space-around;">
                     <ui:Button text="Import" parse-escape-sequences="true" display-tooltip-when-elided="true" name="ConfirmSelectionButton" style="max-height: 52px; min-height: 52px;" />
                 </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="ImportNowLoadingOverlay" class="blm-import-now-loading-overlay" picking-mode="Position">
+            <ui:VisualElement name="ImportNowLoadingPanel" class="blm-import-now-loading-panel">
+                <ui:Label tabindex="-1" text="Processing..." parse-escape-sequences="true" display-tooltip-when-elided="true" name="ImportProcessingTitleLabel" class="blm-import-now-loading-label" />
+                <ui:Label tabindex="-1" text="" parse-escape-sequences="true" display-tooltip-when-elided="true" name="ImportProcessingStatusLabel" class="blm-import-now-loading-status-label" />
             </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>

@@ -87,6 +87,14 @@
       "import": "Import"
     },
     "loading": "Loading...",
+    "processing": {
+      "title": "Processing...",
+      "status": {
+        "starting_import_queue": "Starting import queue...",
+        "import_queue": "Processing import queue...",
+        "import_queue_with_count": "Processing import queue... ({0} item(s) remaining)"
+      }
+    },
     "common": {
       "not_set": "Not Set",
       "all": "All",
@@ -95,6 +103,10 @@
       "skip": "Skip"
     },
     "import": {
+      "now_loading": "Now Loading...",
+      "close_during_queue": {
+        "message": "The import queue is still running. Closing this window will abort the queue. Close the window?"
+      },
       "choose_per_file": "Choose Per File",
       "overwrite": "Overwrite",
       "duplicate_detected": {

@@ -87,6 +87,14 @@
       "import": "インポート"
     },
     "loading": "読み込み中...",
+    "processing": {
+      "title": "処理中...",
+      "status": {
+        "starting_import_queue": "インポートキューを開始しています...",
+        "import_queue": "インポートキューを処理中...",
+        "import_queue_with_count": "インポートキューを処理中... (残り {0} 件)"
+      }
+    },
     "common": {
       "not_set": "未設定",
       "all": "すべて",
@@ -95,6 +103,10 @@
       "skip": "スキップ"
     },
     "import": {
+      "now_loading": "Now Loading...",
+      "close_during_queue": {
+        "message": "インポートキューを実行中です。ウィンドウを閉じるとキューを中断します。閉じますか？"
+      },
       "choose_per_file": "ファイルごとに選択",
       "overwrite": "上書き",
       "duplicate_detected": {

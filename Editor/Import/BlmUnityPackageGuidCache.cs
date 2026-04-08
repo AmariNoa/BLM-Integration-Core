@@ -6,6 +6,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using UnityEngine;
 
 namespace com.amari_noa.blm_integration_core.editor
@@ -68,7 +69,20 @@ namespace com.amari_noa.blm_integration_core.editor
 
         public bool TryGetEntries(string sourcePath, out IReadOnlyList<BlmUnityPackageAssetEntry> entries)
         {
+            return TryGetEntries(sourcePath, CancellationToken.None, out entries);
+        }
+
+        public bool TryGetEntries(
+            string sourcePath,
+            CancellationToken cancellationToken,
+            out IReadOnlyList<BlmUnityPackageAssetEntry> entries)
+        {
             entries = Array.Empty<BlmUnityPackageAssetEntry>();
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return false;
+            }
+
             if (!TryBuildCacheKey(sourcePath, out var cacheKey, out var fullPath))
             {
                 return false;
@@ -84,7 +98,12 @@ namespace com.amari_noa.blm_integration_core.editor
                 }
             }
 
-            var parsedEntries = ParseUnityPackageEntries(fullPath);
+            var parsedEntries = ParseUnityPackageEntries(fullPath, cancellationToken);
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return false;
+            }
+
             var parsedGuids = BuildGuidArray(parsedEntries);
             lock (_syncRoot)
             {
@@ -185,7 +204,9 @@ namespace com.amari_noa.blm_integration_core.editor
             return true;
         }
 
-        private static IReadOnlyList<BlmUnityPackageAssetEntry> ParseUnityPackageEntries(string fullPath)
+        private static IReadOnlyList<BlmUnityPackageAssetEntry> ParseUnityPackageEntries(
+            string fullPath,
+            CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(fullPath) || !File.Exists(fullPath))
             {
@@ -194,9 +215,10 @@ namespace com.amari_noa.blm_integration_core.editor
 
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 using var packageStream = File.OpenRead(fullPath);
                 using var gzipStream = new GZipStream(packageStream, CompressionMode.Decompress);
-                var records = ReadEntryRecords(gzipStream);
+                var records = ReadEntryRecords(gzipStream, cancellationToken);
                 return records
                     .Where(pair => pair.Value.HasPathname && (pair.Value.HasAsset || pair.Value.HasMeta))
                     .Select(pair => new BlmUnityPackageAssetEntry(
@@ -205,6 +227,10 @@ namespace com.amari_noa.blm_integration_core.editor
                         pair.Value.AssetSha256))
                     .OrderBy(entry => entry.Guid ?? string.Empty, StringComparer.Ordinal)
                     .ToArray();
+            }
+            catch (OperationCanceledException)
+            {
+                return Array.Empty<BlmUnityPackageAssetEntry>();
             }
             catch (Exception ex)
             {
@@ -228,7 +254,9 @@ namespace com.amari_noa.blm_integration_core.editor
                 .ToArray();
         }
 
-        private static Dictionary<string, PackageEntryRecord> ReadEntryRecords(Stream tarStream)
+        private static Dictionary<string, PackageEntryRecord> ReadEntryRecords(
+            Stream tarStream,
+            CancellationToken cancellationToken = default)
         {
             var records = new Dictionary<string, PackageEntryRecord>(StringComparer.Ordinal);
             var header = new byte[TarBlockSize];
@@ -236,7 +264,8 @@ namespace com.amari_noa.blm_integration_core.editor
 
             while (true)
             {
-                var headerRead = ReadExactly(tarStream, header, 0, TarBlockSize);
+                cancellationToken.ThrowIfCancellationRequested();
+                var headerRead = ReadExactly(tarStream, header, 0, TarBlockSize, cancellationToken);
                 if (headerRead == 0)
                 {
                     break;
@@ -267,20 +296,20 @@ namespace com.amari_noa.blm_integration_core.editor
                     {
                         case "pathname":
                             record.HasPathname = true;
-                            ConsumeBytes(tarStream, entrySize, consumeBuffer);
-                            ConsumePadding(tarStream, entrySize, consumeBuffer);
+                            ConsumeBytes(tarStream, entrySize, consumeBuffer, cancellationToken);
+                            ConsumePadding(tarStream, entrySize, consumeBuffer, cancellationToken);
                             handled = true;
                             break;
                         case "asset":
                             record.HasAsset = true;
-                            record.AssetSha256 = ConsumeBytesAndComputeSha256(tarStream, entrySize, consumeBuffer);
-                            ConsumePadding(tarStream, entrySize, consumeBuffer);
+                            record.AssetSha256 = ConsumeBytesAndComputeSha256(tarStream, entrySize, consumeBuffer, cancellationToken);
+                            ConsumePadding(tarStream, entrySize, consumeBuffer, cancellationToken);
                             handled = true;
                             break;
                         case "asset.meta":
                             record.HasMeta = true;
-                            ConsumeBytes(tarStream, entrySize, consumeBuffer);
-                            ConsumePadding(tarStream, entrySize, consumeBuffer);
+                            ConsumeBytes(tarStream, entrySize, consumeBuffer, cancellationToken);
+                            ConsumePadding(tarStream, entrySize, consumeBuffer, cancellationToken);
                             handled = true;
                             break;
                     }
@@ -291,18 +320,24 @@ namespace com.amari_noa.blm_integration_core.editor
                     continue;
                 }
 
-                ConsumeBytes(tarStream, entrySize, consumeBuffer);
-                ConsumePadding(tarStream, entrySize, consumeBuffer);
+                ConsumeBytes(tarStream, entrySize, consumeBuffer, cancellationToken);
+                ConsumePadding(tarStream, entrySize, consumeBuffer, cancellationToken);
             }
 
             return records;
         }
 
-        private static int ReadExactly(Stream stream, byte[] buffer, int offset, int count)
+        private static int ReadExactly(
+            Stream stream,
+            byte[] buffer,
+            int offset,
+            int count,
+            CancellationToken cancellationToken = default)
         {
             var totalRead = 0;
             while (totalRead < count)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var read = stream.Read(buffer, offset + totalRead, count - totalRead);
                 if (read <= 0)
                 {
@@ -315,7 +350,11 @@ namespace com.amari_noa.blm_integration_core.editor
             return totalRead;
         }
 
-        private static string ConsumeBytesAndComputeSha256(Stream stream, long byteCount, byte[] readBuffer)
+        private static string ConsumeBytesAndComputeSha256(
+            Stream stream,
+            long byteCount,
+            byte[] readBuffer,
+            CancellationToken cancellationToken = default)
         {
             if (stream == null || readBuffer == null || readBuffer.Length == 0 || byteCount <= 0)
             {
@@ -326,6 +365,7 @@ namespace com.amari_noa.blm_integration_core.editor
             var remaining = byteCount;
             while (remaining > 0)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var readSize = (int)Math.Min(readBuffer.Length, remaining);
                 var read = stream.Read(readBuffer, 0, readSize);
                 if (read <= 0)
@@ -357,11 +397,16 @@ namespace com.amari_noa.blm_integration_core.editor
             return builder.ToString();
         }
 
-        private static void ConsumeBytes(Stream stream, long byteCount, byte[] readBuffer)
+        private static void ConsumeBytes(
+            Stream stream,
+            long byteCount,
+            byte[] readBuffer,
+            CancellationToken cancellationToken = default)
         {
             var remaining = byteCount;
             while (remaining > 0)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var readSize = (int)Math.Min(readBuffer.Length, remaining);
                 var read = stream.Read(readBuffer, 0, readSize);
                 if (read <= 0)
@@ -373,7 +418,11 @@ namespace com.amari_noa.blm_integration_core.editor
             }
         }
 
-        private static void ConsumePadding(Stream stream, long entrySize, byte[] readBuffer)
+        private static void ConsumePadding(
+            Stream stream,
+            long entrySize,
+            byte[] readBuffer,
+            CancellationToken cancellationToken = default)
         {
             var padding = (TarBlockSize - (entrySize % TarBlockSize)) % TarBlockSize;
             if (padding <= 0)
@@ -381,7 +430,7 @@ namespace com.amari_noa.blm_integration_core.editor
                 return;
             }
 
-            ConsumeBytes(stream, padding, readBuffer);
+            ConsumeBytes(stream, padding, readBuffer, cancellationToken);
         }
 
         private static bool IsAllZeroBlock(byte[] block)

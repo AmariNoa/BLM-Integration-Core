@@ -28,7 +28,9 @@ namespace com.amari_noa.blm_integration_core.editor
         private bool _loaded;
         private bool _dirty;
         private bool _saveScheduled;
+        private long _saveDeadlineUtcTicks;
         private const int FileHashCacheMaxEntries = 4096;
+        private const int SaveDebounceMilliseconds = 500;
 
         internal static BlmImportIndexService Shared { get; } = new BlmImportIndexService();
 
@@ -45,6 +47,28 @@ namespace com.amari_noa.blm_integration_core.editor
         }
 
         public bool TryGetImportedGuidAssetPathForProduct(string productId, string guid, out string resolvedAssetPath)
+        {
+            return TryGetImportedGuidAssetPathForProductInternal(
+                productId,
+                guid,
+                out resolvedAssetPath,
+                allowGuidOwnerPathRepair: true);
+        }
+
+        public bool TryGetImportedGuidAssetPathForProductReadOnly(string productId, string guid, out string resolvedAssetPath)
+        {
+            return TryGetImportedGuidAssetPathForProductInternal(
+                productId,
+                guid,
+                out resolvedAssetPath,
+                allowGuidOwnerPathRepair: false);
+        }
+
+        private bool TryGetImportedGuidAssetPathForProductInternal(
+            string productId,
+            string guid,
+            out string resolvedAssetPath,
+            bool allowGuidOwnerPathRepair)
         {
             resolvedAssetPath = string.Empty;
             var normalizedProductId = NormalizeProductId(productId);
@@ -74,7 +98,10 @@ namespace com.amari_noa.blm_integration_core.editor
                 }
             }
 
-            return TryEnsureGuidAssetExists(normalizedGuid, out resolvedAssetPath);
+            return TryEnsureGuidAssetExists(
+                normalizedGuid,
+                out resolvedAssetPath,
+                allowGuidOwnerPathRepair);
         }
 
         public bool TryResolveAssetAbsolutePath(string assetPath, out string absolutePath)
@@ -84,9 +111,31 @@ namespace com.amari_noa.blm_integration_core.editor
 
         public bool TryAreFilesContentEqual(string leftFilePath, string rightFilePath, out bool areEqual)
         {
+            return TryAreFilesContentEqualInternal(
+                leftFilePath,
+                rightFilePath,
+                out areEqual,
+                updateFileHashCache: true);
+        }
+
+        public bool TryAreFilesContentEqualReadOnly(string leftFilePath, string rightFilePath, out bool areEqual)
+        {
+            return TryAreFilesContentEqualInternal(
+                leftFilePath,
+                rightFilePath,
+                out areEqual,
+                updateFileHashCache: false);
+        }
+
+        private bool TryAreFilesContentEqualInternal(
+            string leftFilePath,
+            string rightFilePath,
+            out bool areEqual,
+            bool updateFileHashCache)
+        {
             areEqual = false;
-            if (!TryComputeFileSha256(leftFilePath, out var leftSha256) ||
-                !TryComputeFileSha256(rightFilePath, out var rightSha256))
+            if (!TryComputeFileSha256(leftFilePath, out var leftSha256, updateFileHashCache) ||
+                !TryComputeFileSha256(rightFilePath, out var rightSha256, updateFileHashCache))
             {
                 return false;
             }
@@ -97,10 +146,40 @@ namespace com.amari_noa.blm_integration_core.editor
 
         public bool TryGetFileSha256(string filePath, out string sha256)
         {
-            return TryComputeFileSha256(filePath, out sha256);
+            return TryComputeFileSha256(filePath, out sha256, updateFileHashCache: true);
+        }
+
+        public bool TryGetFileSha256ReadOnly(string filePath, out string sha256)
+        {
+            return TryComputeFileSha256(filePath, out sha256, updateFileHashCache: false);
         }
 
         public bool TryFindUniqueGuidByProductAndFileName(string productId, string sourceFilePath, out string guid)
+        {
+            return TryFindUniqueGuidByProductAndFileNameInternal(
+                productId,
+                sourceFilePath,
+                out guid,
+                allowGuidOwnerPathRepair: true,
+                updateFileHashCache: true);
+        }
+
+        public bool TryFindUniqueGuidByProductAndFileNameReadOnly(string productId, string sourceFilePath, out string guid)
+        {
+            return TryFindUniqueGuidByProductAndFileNameInternal(
+                productId,
+                sourceFilePath,
+                out guid,
+                allowGuidOwnerPathRepair: false,
+                updateFileHashCache: false);
+        }
+
+        private bool TryFindUniqueGuidByProductAndFileNameInternal(
+            string productId,
+            string sourceFilePath,
+            out string guid,
+            bool allowGuidOwnerPathRepair,
+            bool updateFileHashCache)
         {
             guid = string.Empty;
             var normalizedProductId = NormalizeProductId(productId);
@@ -149,7 +228,7 @@ namespace com.amari_noa.blm_integration_core.editor
                 return false;
             }
 
-            if (!TryComputeFileSha256(sourceFilePath, out var sourceSha256))
+            if (!TryComputeFileSha256(sourceFilePath, out var sourceSha256, updateFileHashCache))
             {
                 return false;
             }
@@ -159,9 +238,9 @@ namespace com.amari_noa.blm_integration_core.editor
             {
                 var candidateGuid = candidateGuids[i];
                 if (string.IsNullOrWhiteSpace(candidateGuid) ||
-                    !TryEnsureGuidAssetExists(candidateGuid, out var resolvedAssetPath) ||
+                    !TryEnsureGuidAssetExists(candidateGuid, out var resolvedAssetPath, allowGuidOwnerPathRepair) ||
                     !TryResolveAbsolutePathFromAssetPath(resolvedAssetPath, out var candidateAbsolutePath) ||
-                    !TryComputeFileSha256(candidateAbsolutePath, out var candidateSha256) ||
+                    !TryComputeFileSha256(candidateAbsolutePath, out var candidateSha256, updateFileHashCache) ||
                     !string.Equals(candidateSha256, sourceSha256, StringComparison.Ordinal))
                 {
                     continue;
@@ -189,6 +268,11 @@ namespace com.amari_noa.blm_integration_core.editor
         }
 
         public bool TryEnsureGuidAssetExists(string guid, out string resolvedAssetPath)
+        {
+            return TryEnsureGuidAssetExists(guid, out resolvedAssetPath, allowPathRepair: true);
+        }
+
+        private bool TryEnsureGuidAssetExists(string guid, out string resolvedAssetPath, bool allowPathRepair)
         {
             resolvedAssetPath = string.Empty;
             var normalizedGuid = NormalizeGuid(guid);
@@ -220,6 +304,12 @@ namespace com.amari_noa.blm_integration_core.editor
             if (string.IsNullOrWhiteSpace(reResolvedPath))
             {
                 return false;
+            }
+
+            if (!allowPathRepair)
+            {
+                resolvedAssetPath = reResolvedPath;
+                return true;
             }
 
             var changed = false;
@@ -266,7 +356,8 @@ namespace com.amari_noa.blm_integration_core.editor
             BlmImportRequestItem item,
             BlmImportedItemKind itemKind,
             bool destinationWasPreExisting,
-            bool isSkipped)
+            bool isSkipped,
+            BlmImportIndexAssetResolveCache resolveCache = null)
         {
             if (item == null || isSkipped)
             {
@@ -302,17 +393,18 @@ namespace com.amari_noa.blm_integration_core.editor
                     changed = true;
                 }
 
+                productEntry.Guids ??= new List<string>();
+
                 foreach (var destinationPath in normalizedDestinationPaths)
                 {
-                    var guid = NormalizeGuid(AssetDatabase.AssetPathToGUID(destinationPath));
+                    var guid = ResolveGuidByAssetPath(destinationPath, resolveCache);
                     if (string.IsNullOrWhiteSpace(guid))
                     {
                         continue;
                     }
 
-                    if (!Contains(productEntry.Guids, guid, StringComparer.Ordinal))
+                    if (AddDistinctSorted(productEntry.Guids, guid, StringComparer.Ordinal))
                     {
-                        productEntry.Guids.Add(guid);
                         changed = true;
                     }
 
@@ -331,13 +423,13 @@ namespace com.amari_noa.blm_integration_core.editor
                         changed = true;
                     }
 
-                    if (!Contains(ownerEntry.OwnerProductIds, productId, StringComparer.Ordinal))
+                    ownerEntry.OwnerProductIds ??= new List<string>();
+                    if (AddDistinctSorted(ownerEntry.OwnerProductIds, productId, StringComparer.Ordinal))
                     {
-                        ownerEntry.OwnerProductIds.Add(productId);
                         changed = true;
                     }
 
-                    var resolvedAssetPath = NormalizeAssetPath(AssetDatabase.GUIDToAssetPath(guid));
+                    var resolvedAssetPath = ResolveAssetPathByGuid(guid, resolveCache);
                     if (string.IsNullOrWhiteSpace(resolvedAssetPath))
                     {
                         resolvedAssetPath = destinationPath;
@@ -349,15 +441,15 @@ namespace com.amari_noa.blm_integration_core.editor
                         changed = true;
                     }
                 }
-
-                if (changed)
-                {
-                    NormalizeDocumentUnsafe();
-                }
             }
 
             if (changed)
             {
+                lock (_syncRoot)
+                {
+                    _productGuidSetCache.Remove(productId);
+                }
+
                 MarkDirty();
             }
         }
@@ -466,11 +558,13 @@ namespace com.amari_noa.blm_integration_core.editor
                 if (!_loaded || !_dirty)
                 {
                     _saveScheduled = false;
+                    _saveDeadlineUtcTicks = 0L;
                     return;
                 }
 
                 SaveUnsafe();
                 _saveScheduled = false;
+                _saveDeadlineUtcTicks = 0L;
             }
         }
 
@@ -760,6 +854,7 @@ namespace com.amari_noa.blm_integration_core.editor
             lock (_syncRoot)
             {
                 _dirty = true;
+                _saveDeadlineUtcTicks = DateTime.UtcNow.AddMilliseconds(SaveDebounceMilliseconds).Ticks;
                 if (!_saveScheduled)
                 {
                     _saveScheduled = true;
@@ -777,13 +872,22 @@ namespace com.amari_noa.blm_integration_core.editor
         {
             lock (_syncRoot)
             {
-                _saveScheduled = false;
                 if (!_loaded || !_dirty)
                 {
+                    _saveScheduled = false;
+                    _saveDeadlineUtcTicks = 0L;
+                    return;
+                }
+
+                if (DateTime.UtcNow.Ticks < _saveDeadlineUtcTicks)
+                {
+                    EditorApplication.delayCall += FlushScheduledSave;
                     return;
                 }
 
                 SaveUnsafe();
+                _saveScheduled = false;
+                _saveDeadlineUtcTicks = 0L;
             }
         }
 
@@ -882,6 +986,61 @@ namespace com.amari_noa.blm_integration_core.editor
             var pathGuid = NormalizeGuid(AssetDatabase.AssetPathToGUID(assetPath));
             return !string.IsNullOrWhiteSpace(pathGuid) &&
                    string.Equals(pathGuid, guid, StringComparison.Ordinal);
+        }
+
+        private static string ResolveGuidByAssetPath(string assetPath, BlmImportIndexAssetResolveCache resolveCache)
+        {
+            var normalizedAssetPath = NormalizeAssetPath(assetPath);
+            if (string.IsNullOrWhiteSpace(normalizedAssetPath))
+            {
+                return string.Empty;
+            }
+
+            if (resolveCache != null &&
+                resolveCache.TryGetGuidByAssetPath(normalizedAssetPath, out var cachedGuid))
+            {
+                return NormalizeGuid(cachedGuid);
+            }
+
+            var resolvedGuid = NormalizeGuid(AssetDatabase.AssetPathToGUID(normalizedAssetPath));
+            resolveCache?.SetGuidByAssetPath(normalizedAssetPath, resolvedGuid);
+            return resolvedGuid;
+        }
+
+        private static string ResolveAssetPathByGuid(string guid, BlmImportIndexAssetResolveCache resolveCache)
+        {
+            var normalizedGuid = NormalizeGuid(guid);
+            if (string.IsNullOrWhiteSpace(normalizedGuid))
+            {
+                return string.Empty;
+            }
+
+            if (resolveCache != null &&
+                resolveCache.TryGetAssetPathByGuid(normalizedGuid, out var cachedAssetPath))
+            {
+                return NormalizeAssetPath(cachedAssetPath);
+            }
+
+            var resolvedAssetPath = NormalizeAssetPath(AssetDatabase.GUIDToAssetPath(normalizedGuid));
+            resolveCache?.SetAssetPathByGuid(normalizedGuid, resolvedAssetPath);
+            return resolvedAssetPath;
+        }
+
+        private static bool AddDistinctSorted(List<string> source, string value, StringComparer comparer)
+        {
+            if (source == null || string.IsNullOrWhiteSpace(value) || comparer == null)
+            {
+                return false;
+            }
+
+            if (Contains(source, value, comparer))
+            {
+                return false;
+            }
+
+            source.Add(value);
+            source.Sort(comparer);
+            return true;
         }
 
         private static bool Contains(IEnumerable<string> source, string value, StringComparer comparer)
@@ -1062,7 +1221,7 @@ namespace com.amari_noa.blm_integration_core.editor
             }
         }
 
-        private bool TryComputeFileSha256(string path, out string sha256)
+        private bool TryComputeFileSha256(string path, out string sha256, bool updateFileHashCache)
         {
             sha256 = string.Empty;
             if (string.IsNullOrWhiteSpace(path))
@@ -1132,6 +1291,12 @@ namespace com.amari_noa.blm_integration_core.editor
             if (string.IsNullOrWhiteSpace(normalizedSha256))
             {
                 return false;
+            }
+
+            if (!updateFileHashCache)
+            {
+                sha256 = normalizedSha256;
+                return true;
             }
 
             var nextEntry = new BlmImportIndexFileHashEntry
