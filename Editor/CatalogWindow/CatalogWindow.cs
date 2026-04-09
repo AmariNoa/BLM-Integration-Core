@@ -936,7 +936,11 @@ namespace com.amari_noa.blm_integration_core.editor
                     return;
                 }
 
-                RebuildSubCategoryChoices();
+                WithSuppressedUiCallbacks(() =>
+                {
+                    RebuildSubCategoryChoices();
+                    _subCategoryFilterField.index = _subCategoryValues.Count > 0 ? 0 : -1;
+                });
                 ApplyFilter(true);
             });
             _subCategoryFilterField.RegisterValueChangedCallback(_ =>
@@ -1673,6 +1677,18 @@ namespace com.amari_noa.blm_integration_core.editor
                 EditorUtility.DisplayDialog(
                     L("blm.import.completed.title", "BLM Window"),
                     L("blm.import.completed.message", "Import completed."),
+                    "OK");
+                return;
+            }
+
+            if (result.ImportStatus == AmariUnityPackagePipelineOperationStatus.Cancelled)
+            {
+                var cancelledMessage = string.IsNullOrWhiteSpace(result.ErrorMessage)
+                    ? L("blm.import.cancelled.message", "Import cancelled.")
+                    : result.ErrorMessage;
+                EditorUtility.DisplayDialog(
+                    L("blm.import.cancelled.title", "BLM Window"),
+                    cancelledMessage,
                     "OK");
                 return;
             }
