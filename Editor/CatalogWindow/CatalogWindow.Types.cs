@@ -26,13 +26,6 @@ namespace com.amari_noa.blm_integration_core.editor
             On = 2
         }
 
-        private enum ImportStartImportedStateCheckResult
-        {
-            ImportedAndUnchanged = 0,
-            GuidMatchedButHashMismatch = 1,
-            NotImported = 2
-        }
-
         private enum ImportedStateRowHighlightKind
         {
             None = 0,

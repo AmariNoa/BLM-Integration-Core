@@ -99,7 +99,11 @@ namespace com.amari_noa.blm_integration_core.editor
 
                 if (resultContext.ImportStatus != AmariUnityPackagePipelineOperationStatus.Completed)
                 {
-                    return UnityPackageImportOutcome.Failed(resultContext.ImportStatus, resultContext.ErrorMessage);
+                    return UnityPackageImportOutcome.Failed(
+                        resultContext.ImportStatus,
+                        resultContext.ErrorMessage,
+                        resultContext.CancellationReason,
+                        resultContext.FailureReason);
                 }
 
                 return UnityPackageImportOutcome.Completed();
@@ -210,24 +214,43 @@ namespace com.amari_noa.blm_integration_core.editor
         {
             public bool IsSuccess { get; }
             public AmariUnityPackagePipelineOperationStatus Status { get; }
+            public AmariUnityPackageImportCancellationReason CancellationReason { get; }
+            public AmariUnityPackageImportFailureReason FailureReason { get; }
             public string ErrorMessage { get; }
 
-            private UnityPackageImportOutcome(bool isSuccess, AmariUnityPackagePipelineOperationStatus status, string errorMessage)
+            private UnityPackageImportOutcome(
+                bool isSuccess,
+                AmariUnityPackagePipelineOperationStatus status,
+                string errorMessage,
+                AmariUnityPackageImportCancellationReason cancellationReason,
+                AmariUnityPackageImportFailureReason failureReason)
             {
                 IsSuccess = isSuccess;
                 Status = status;
                 ErrorMessage = errorMessage ?? string.Empty;
+                CancellationReason = cancellationReason;
+                FailureReason = failureReason;
             }
 
             public static UnityPackageImportOutcome Completed()
             {
-                return new UnityPackageImportOutcome(true, AmariUnityPackagePipelineOperationStatus.Completed, string.Empty);
+                return new UnityPackageImportOutcome(
+                    true,
+                    AmariUnityPackagePipelineOperationStatus.Completed,
+                    string.Empty,
+                    AmariUnityPackageImportCancellationReason.None,
+                    AmariUnityPackageImportFailureReason.None);
             }
 
-            public static UnityPackageImportOutcome Failed(AmariUnityPackagePipelineOperationStatus status, string errorMessage)
+            public static UnityPackageImportOutcome Failed(
+                AmariUnityPackagePipelineOperationStatus status,
+                string errorMessage,
+                AmariUnityPackageImportCancellationReason cancellationReason = AmariUnityPackageImportCancellationReason.None,
+                AmariUnityPackageImportFailureReason failureReason = AmariUnityPackageImportFailureReason.None)
             {
-                return new UnityPackageImportOutcome(false, status, errorMessage);
+                return new UnityPackageImportOutcome(false, status, errorMessage, cancellationReason, failureReason);
             }
         }
+
     }
 }

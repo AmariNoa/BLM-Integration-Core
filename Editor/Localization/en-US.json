@@ -124,6 +124,26 @@
       "completed": {
         "title": "BLM Window",
         "message": "Import completed."
+      },
+      "cancelled": {
+        "title": "BLM Window",
+        "message": "Import cancelled.",
+        "with_package": "Import cancelled: {0}",
+        "by_window_close": "Package import was cancelled by closing the import window.",
+        "by_window_close_with_path": "Package import was cancelled by closing the import window: {0}",
+        "by_hang_timeout": "Package import was cancelled because Unity stopped responding after the import was confirmed.",
+        "by_hang_timeout_with_path": "Package import was cancelled because Unity stopped responding after the import was confirmed: {0}",
+        "by_pipeline_reset": "Import was cancelled because the import pipeline was reset.",
+        "by_pipeline_reset_with_path": "Import was cancelled because the import pipeline was reset: {0}",
+        "by_stale_recovery": "Import was cancelled while recovering inconsistent pipeline state.",
+        "by_stale_recovery_with_path": "Import was cancelled while recovering inconsistent pipeline state: {0}"
+      },
+      "failed": {
+        "title": "BLM Window",
+        "message": "Import failed.",
+        "with_package": "Import failed: {0}",
+        "by_window_types_unresolved": "Failed to start interactive package import (package import window could not be resolved).",
+        "by_window_types_unresolved_with_path": "Failed to start interactive package import (package import window could not be resolved): {0}"
       }
     },
     "thumbnail_cache": {

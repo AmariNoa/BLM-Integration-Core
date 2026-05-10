@@ -116,6 +116,8 @@ namespace com.amari_noa.blm_integration_core.editor
                         {
                             result.FailedItems.Add(item);
                             result.ImportStatus = unityResult.Status;
+                            result.CancellationReason = unityResult.CancellationReason;
+                            result.FailureReason = unityResult.FailureReason;
                             result.ErrorMessage = unityResult.ErrorMessage;
                             RemoveFirstRemainingQueueItem(remainingQueue);
                             processedCount++;

@@ -10,6 +10,8 @@ namespace com.amari_noa.blm_integration_core.editor
         public List<BlmImportRequestItem> SucceededItems = new List<BlmImportRequestItem>();
         public List<BlmImportRequestItem> FailedItems = new List<BlmImportRequestItem>();
         public AmariUnityPackagePipelineOperationStatus ImportStatus = AmariUnityPackagePipelineOperationStatus.None;
+        public AmariUnityPackageImportCancellationReason CancellationReason = AmariUnityPackageImportCancellationReason.None;
+        public AmariUnityPackageImportFailureReason FailureReason = AmariUnityPackageImportFailureReason.None;
         public string ErrorMessage = string.Empty;
     }
 }

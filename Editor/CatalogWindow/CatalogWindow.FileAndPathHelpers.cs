@@ -10,37 +10,6 @@ namespace com.amari_noa.blm_integration_core.editor
 {
     public sealed partial class CatalogWindow
     {
-        private static bool TryBuildImportStartCheckTargets(
-            BlmImportRequestItem requestItem,
-            out BlmItemRecord item,
-            out BlmFileRecord file)
-        {
-            item = null;
-            file = null;
-            if (requestItem == null ||
-                string.IsNullOrWhiteSpace(requestItem.ProductId) ||
-                string.IsNullOrWhiteSpace(requestItem.SourcePath))
-            {
-                return false;
-            }
-
-            var sourcePath = requestItem.SourcePath;
-            file = new BlmFileRecord
-            {
-                FileName = Path.GetFileName(sourcePath) ?? string.Empty,
-                FullPath = sourcePath,
-                FileExtension = Path.GetExtension(sourcePath) ?? string.Empty
-            };
-            item = new BlmItemRecord
-            {
-                ProductId = requestItem.ProductId ?? string.Empty,
-                ProductName = requestItem.ProductName ?? string.Empty,
-                ShopName = requestItem.ShopName ?? string.Empty,
-                RootFolderPath = requestItem.RootFolderPath ?? string.Empty
-            };
-            return true;
-        }
-
         private readonly struct BatchFileCandidate
         {
             public BatchFileCandidate(BlmFileRecord file, int extensionPriority)

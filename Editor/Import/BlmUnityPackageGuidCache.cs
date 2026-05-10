@@ -41,28 +41,14 @@ namespace com.amari_noa.blm_integration_core.editor
         public bool TryGetGuids(string sourcePath, out IReadOnlyList<string> guids)
         {
             guids = Array.Empty<string>();
-            if (!TryBuildCacheKey(sourcePath, out var cacheKey, out var fullPath))
+            if (!TryGetEntries(sourcePath, out var entries) ||
+                entries == null ||
+                entries.Count == 0)
             {
                 return false;
             }
 
-            lock (_syncRoot)
-            {
-                if (_entries.TryGetValue(cacheKey, out var cached))
-                {
-                    Touch(cached);
-                    guids = cached.Guids;
-                    return cached.Guids.Count > 0;
-                }
-            }
-
-            var parsedEntries = ParseUnityPackageEntries(fullPath);
-            var parsedGuids = BuildGuidArray(parsedEntries);
-            lock (_syncRoot)
-            {
-                AddOrReplace(cacheKey, parsedEntries, parsedGuids);
-            }
-
+            var parsedGuids = BuildGuidArray(entries);
             guids = parsedGuids;
             return parsedGuids.Count > 0;
         }

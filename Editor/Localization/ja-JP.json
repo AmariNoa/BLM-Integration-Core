@@ -124,6 +124,26 @@
       "completed": {
         "title": "BLMウィンドウ",
         "message": "インポートが完了しました。"
+      },
+      "cancelled": {
+        "title": "BLMウィンドウ",
+        "message": "インポートをキャンセルしました。",
+        "with_package": "インポートをキャンセルしました: {0}",
+        "by_window_close": "UnityPackageのインポートウィンドウを閉じたため、インポートをキャンセルしました。",
+        "by_window_close_with_path": "UnityPackageのインポートウィンドウを閉じたため、インポートをキャンセルしました: {0}",
+        "by_hang_timeout": "インポート確定後にUnityが応答しなくなったため、インポートをキャンセルしました。",
+        "by_hang_timeout_with_path": "インポート確定後にUnityが応答しなくなったため、インポートをキャンセルしました: {0}",
+        "by_pipeline_reset": "インポートパイプラインがリセットされたため、インポートをキャンセルしました。",
+        "by_pipeline_reset_with_path": "インポートパイプラインがリセットされたため、インポートをキャンセルしました: {0}",
+        "by_stale_recovery": "パイプラインの不整合状態を回復するため、インポートをキャンセルしました。",
+        "by_stale_recovery_with_path": "パイプラインの不整合状態を回復するため、インポートをキャンセルしました: {0}"
+      },
+      "failed": {
+        "title": "BLMウィンドウ",
+        "message": "インポートに失敗しました。",
+        "with_package": "インポートに失敗しました: {0}",
+        "by_window_types_unresolved": "Package Import ウィンドウを解決できなかったため、インタラクティブなインポートを開始できませんでした。",
+        "by_window_types_unresolved_with_path": "Package Import ウィンドウを解決できなかったため、インタラクティブなインポートを開始できませんでした: {0}"
       }
     },
     "thumbnail_cache": {
