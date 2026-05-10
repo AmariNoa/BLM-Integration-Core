@@ -1,7 +1,5 @@
 using System;
 using System.IO;
-using System.Security.Cryptography;
-using System.Text;
 using System.Threading;
 
 namespace com.amari_noa.blm_integration_core.editor
@@ -64,7 +62,10 @@ namespace com.amari_noa.blm_integration_core.editor
             }
 
             return !cancellationToken.IsCancellationRequested &&
-                   TryGetFileSha256WithCancellation(destinationAbsolutePath, cancellationToken, out var destinationSha256) &&
+                   BlmImportIndexService.Shared.TryGetFileSha256(
+                       destinationAbsolutePath,
+                       cancellationToken,
+                       out var destinationSha256) &&
                    !cancellationToken.IsCancellationRequested &&
                    string.Equals(destinationSha256, expectedSourceSha256, StringComparison.Ordinal);
         }
@@ -75,102 +76,11 @@ namespace com.amari_noa.blm_integration_core.editor
             CancellationToken cancellationToken,
             out bool areEqual)
         {
-            areEqual = false;
-            if (!TryGetFileSha256WithCancellation(leftFilePath, cancellationToken, out var leftSha256) ||
-                !TryGetFileSha256WithCancellation(rightFilePath, cancellationToken, out var rightSha256))
-            {
-                return false;
-            }
-
-            if (cancellationToken.IsCancellationRequested)
-            {
-                return false;
-            }
-
-            areEqual = string.Equals(leftSha256, rightSha256, StringComparison.Ordinal);
-            return true;
-        }
-
-        private static bool TryGetFileSha256WithCancellation(
-            string filePath,
-            CancellationToken cancellationToken,
-            out string sha256)
-        {
-            sha256 = string.Empty;
-            if (cancellationToken.IsCancellationRequested || string.IsNullOrWhiteSpace(filePath))
-            {
-                return false;
-            }
-
-            string fullPath;
-            try
-            {
-                fullPath = Path.GetFullPath(filePath);
-            }
-            catch
-            {
-                fullPath = filePath;
-            }
-
-            if (string.IsNullOrWhiteSpace(fullPath))
-            {
-                return false;
-            }
-
-            try
-            {
-                var info = new FileInfo(fullPath);
-                if (!info.Exists || (info.Attributes & FileAttributes.Directory) != 0)
-                {
-                    return false;
-                }
-            }
-            catch
-            {
-                return false;
-            }
-
-            try
-            {
-                using var stream = new FileStream(
-                    fullPath,
-                    FileMode.Open,
-                    FileAccess.Read,
-                    FileShare.ReadWrite,
-                    81920,
-                    FileOptions.SequentialScan);
-                using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-                var buffer = new byte[81920];
-                while (true)
-                {
-                    if (cancellationToken.IsCancellationRequested)
-                    {
-                        return false;
-                    }
-
-                    var read = stream.Read(buffer, 0, buffer.Length);
-                    if (read <= 0)
-                    {
-                        break;
-                    }
-
-                    hash.AppendData(buffer, 0, read);
-                }
-
-                var hashBytes = hash.GetHashAndReset();
-                var builder = new StringBuilder(hashBytes.Length * 2);
-                for (var i = 0; i < hashBytes.Length; i++)
-                {
-                    builder.Append(hashBytes[i].ToString("x2"));
-                }
-
-                sha256 = builder.ToString();
-                return !string.IsNullOrWhiteSpace(sha256);
-            }
-            catch
-            {
-                return false;
-            }
+            return BlmImportIndexService.Shared.TryAreFilesContentEqual(
+                leftFilePath,
+                rightFilePath,
+                cancellationToken,
+                out areEqual);
         }
 
         private static string BuildImportedStateProductFileKey(string productId, BlmFileRecord file)

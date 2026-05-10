@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using UnityEditor;
 using UnityEngine;
 
@@ -316,10 +317,14 @@ namespace com.amari_noa.blm_integration_core.editor
             }
         }
 
-        private bool TryComputeFileSha256(string path, out string sha256, bool updateFileHashCache)
+        private bool TryComputeFileSha256(
+            string path,
+            out string sha256,
+            bool updateFileHashCache,
+            CancellationToken cancellationToken = default)
         {
             sha256 = string.Empty;
-            if (string.IsNullOrWhiteSpace(path))
+            if (string.IsNullOrWhiteSpace(path) || cancellationToken.IsCancellationRequested)
             {
                 return false;
             }
@@ -366,9 +371,32 @@ namespace com.amari_noa.blm_integration_core.editor
             string computedSha256;
             try
             {
-                using var stream = File.OpenRead(fullPath);
-                using var sha = SHA256.Create();
-                var hashBytes = sha.ComputeHash(stream);
+                using var stream = new FileStream(
+                    fullPath,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.ReadWrite,
+                    81920,
+                    FileOptions.SequentialScan);
+                using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+                var buffer = new byte[81920];
+                while (true)
+                {
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        return false;
+                    }
+
+                    var read = stream.Read(buffer, 0, buffer.Length);
+                    if (read <= 0)
+                    {
+                        break;
+                    }
+
+                    hash.AppendData(buffer, 0, read);
+                }
+
+                var hashBytes = hash.GetHashAndReset();
                 var builder = new StringBuilder(hashBytes.Length * 2);
                 for (var i = 0; i < hashBytes.Length; i++)
                 {
@@ -378,6 +406,11 @@ namespace com.amari_noa.blm_integration_core.editor
                 computedSha256 = builder.ToString();
             }
             catch
+            {
+                return false;
+            }
+
+            if (cancellationToken.IsCancellationRequested)
             {
                 return false;
             }

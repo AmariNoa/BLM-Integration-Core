@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using Newtonsoft.Json;
 using UnityEditor;
 using UnityEngine;
@@ -118,6 +119,20 @@ namespace com.amari_noa.blm_integration_core.editor
                 updateFileHashCache: true);
         }
 
+        public bool TryAreFilesContentEqual(
+            string leftFilePath,
+            string rightFilePath,
+            CancellationToken cancellationToken,
+            out bool areEqual)
+        {
+            return TryAreFilesContentEqualInternal(
+                leftFilePath,
+                rightFilePath,
+                out areEqual,
+                updateFileHashCache: true,
+                cancellationToken);
+        }
+
         public bool TryAreFilesContentEqualReadOnly(string leftFilePath, string rightFilePath, out bool areEqual)
         {
             return TryAreFilesContentEqualInternal(
@@ -131,11 +146,17 @@ namespace com.amari_noa.blm_integration_core.editor
             string leftFilePath,
             string rightFilePath,
             out bool areEqual,
-            bool updateFileHashCache)
+            bool updateFileHashCache,
+            CancellationToken cancellationToken = default)
         {
             areEqual = false;
-            if (!TryComputeFileSha256(leftFilePath, out var leftSha256, updateFileHashCache) ||
-                !TryComputeFileSha256(rightFilePath, out var rightSha256, updateFileHashCache))
+            if (!TryComputeFileSha256(leftFilePath, out var leftSha256, updateFileHashCache, cancellationToken) ||
+                !TryComputeFileSha256(rightFilePath, out var rightSha256, updateFileHashCache, cancellationToken))
+            {
+                return false;
+            }
+
+            if (cancellationToken.IsCancellationRequested)
             {
                 return false;
             }
@@ -147,6 +168,11 @@ namespace com.amari_noa.blm_integration_core.editor
         public bool TryGetFileSha256(string filePath, out string sha256)
         {
             return TryComputeFileSha256(filePath, out sha256, updateFileHashCache: true);
+        }
+
+        public bool TryGetFileSha256(string filePath, CancellationToken cancellationToken, out string sha256)
+        {
+            return TryComputeFileSha256(filePath, out sha256, updateFileHashCache: true, cancellationToken);
         }
 
         public bool TryGetFileSha256ReadOnly(string filePath, out string sha256)
