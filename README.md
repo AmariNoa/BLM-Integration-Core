@@ -30,7 +30,7 @@
 
 ## パッケージ開発における AI の取り扱い
 
-- 本パッケージの開発にはCodexを使用しています。
+- 本パッケージの開発にはCodexおよびClaude Codeを使用しています。
 
 ---
 
@@ -60,4 +60,4 @@ However, if BOOTH or pixiv requests suspension of publication, publication will 
 
 ## Use of AI in Package Development
 
-- Codex is used in the development of this package.
+- Codex and Claude Code are used in the development of this package.
