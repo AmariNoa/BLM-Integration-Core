@@ -2496,6 +2496,10 @@ namespace com.amari_noa.blm_integration_core.editor
                     importedState);
                 _activeImportedStateUnityPackageCheck = null;
             }
+            else
+            {
+                UpdateImportedStateLabel(state.WorkItem.Item ?? _detailItem);
+            }
 
             return true;
         }
@@ -2955,11 +2959,40 @@ namespace com.amari_noa.blm_integration_core.editor
             var currentProcessingIndex = totalCount <= 0
                 ? 0
                 : Math.Min(totalCount, checkedCount + 1);
-            return string.Format(
+            var fileLine = string.Format(
                 CultureInfo.InvariantCulture,
                 L("blm.detail.imported_state.checking", "Checking imported files... ({0}/{1})"),
                 currentProcessingIndex,
                 totalCount);
+
+            var entryLine = BuildImportedStateCheckingEntriesLabelText();
+            return string.IsNullOrEmpty(entryLine)
+                ? fileLine
+                : fileLine + "\n" + entryLine;
+        }
+
+        private string BuildImportedStateCheckingEntriesLabelText()
+        {
+            var state = _activeImportedStateUnityPackageCheck;
+            if (state == null || state.WorkItem.EvaluationVersion != _importedStateEvaluationVersion)
+            {
+                return string.Empty;
+            }
+
+            var entriesCount = state.Entries?.Count ?? 0;
+            if (entriesCount <= 0)
+            {
+                return string.Empty;
+            }
+
+            var hasActiveTask = state.ActiveAssetHashComparisonTask != null;
+            var processedCount = Math.Max(0, state.NextEntryIndex - (hasActiveTask ? 1 : 0));
+            var currentProcessingIndex = Math.Min(entriesCount, processedCount + 1);
+            return string.Format(
+                CultureInfo.InvariantCulture,
+                L("blm.detail.imported_state.checking_entries", "Checking entries... ({0}/{1})"),
+                currentProcessingIndex,
+                entriesCount);
         }
 
         private void SetImportedStateLabel(string text, bool visible)
