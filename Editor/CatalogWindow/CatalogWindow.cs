@@ -2403,6 +2403,11 @@ namespace com.amari_noa.blm_integration_core.editor
                 var isHashMatch = state.ActiveAssetHashComparisonTask.IsCompletedSuccessfully &&
                                   state.ActiveAssetHashComparisonTask.Result;
                 state.ActiveAssetHashComparisonTask = null;
+                if (state.PendingCacheEntry != null)
+                {
+                    _importedStateCacheService.Upsert(state.PendingCacheEntry, isHashMatch);
+                    state.PendingCacheEntry = null;
+                }
                 if (isHashMatch)
                 {
                     state.HasImportedEntries = true;
@@ -2445,7 +2450,35 @@ namespace com.amari_noa.blm_integration_core.editor
                     continue;
                 }
 
+                BlmImportedStateCacheEntry cacheEntry = null;
+                if (TryGetDestinationFileSnapshot(destinationAbsolutePath, out var destFileSize, out var destLastWriteTimeUtcTicks) &&
+                    _importedStateCacheService.TryBuildEntry(
+                        state.WorkItem.Item?.ProductId,
+                        state.WorkItem.File?.FullPath,
+                        state.WorkItem.ImportIndexFingerprint,
+                        entry.Guid,
+                        destFileSize,
+                        destLastWriteTimeUtcTicks,
+                        out var builtCacheEntry))
+                {
+                    cacheEntry = builtCacheEntry;
+                    if (_importedStateCacheService.TryGet(cacheEntry, out var cachedImported))
+                    {
+                        if (cachedImported)
+                        {
+                            state.HasImportedEntries = true;
+                        }
+                        else
+                        {
+                            state.HasMissingEntries = true;
+                        }
+
+                        continue;
+                    }
+                }
+
                 var cancellationToken = _activeImportedStateCancellationTokenSource?.Token ?? CancellationToken.None;
+                state.PendingCacheEntry = cacheEntry;
                 state.ActiveAssetHashComparisonTask = Task.Run(
                     () => TryIsUnityPackageAssetHashMatch(destinationAbsolutePath, entry.AssetSha256, cancellationToken),
                     cancellationToken);

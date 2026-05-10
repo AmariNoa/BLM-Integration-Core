@@ -83,6 +83,36 @@ namespace com.amari_noa.blm_integration_core.editor
                 out areEqual);
         }
 
+        private static bool TryGetDestinationFileSnapshot(
+            string fullPath,
+            out long fileSize,
+            out long lastWriteTimeUtcTicks)
+        {
+            fileSize = 0L;
+            lastWriteTimeUtcTicks = 0L;
+            if (string.IsNullOrWhiteSpace(fullPath))
+            {
+                return false;
+            }
+
+            try
+            {
+                var info = new FileInfo(fullPath);
+                if (!info.Exists || (info.Attributes & FileAttributes.Directory) != 0)
+                {
+                    return false;
+                }
+
+                fileSize = info.Length;
+                lastWriteTimeUtcTicks = info.LastWriteTimeUtc.Ticks;
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         private static string BuildImportedStateProductFileKey(string productId, BlmFileRecord file)
         {
             if (file == null || string.IsNullOrWhiteSpace(productId))

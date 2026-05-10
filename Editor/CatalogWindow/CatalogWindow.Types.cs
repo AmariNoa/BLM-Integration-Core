@@ -57,6 +57,7 @@ namespace com.amari_noa.blm_integration_core.editor
             public bool HasImportedEntries { get; set; }
             public bool HasMissingEntries { get; set; }
             public Task<bool> ActiveAssetHashComparisonTask { get; set; }
+            public BlmImportedStateCacheEntry PendingCacheEntry { get; set; }
 
             public ImportedStateUnityPackageCheckState(
                 ImportedStateCheckWorkItem workItem,
