@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
@@ -22,14 +21,7 @@ namespace com.amari_noa.blm_integration_core.editor
                 RebuildGridFromScratch(pageItems);
             }
 
-            rootVisualElement.Q<Label>("CurrentPageLabel").text = _page.ToString(CultureInfo.InvariantCulture);
-            rootVisualElement.Q<Label>("TotalPageLabel").text = total.ToString(CultureInfo.InvariantCulture);
-            rootVisualElement.Q<Button>("PrevPageButton").SetEnabled(_page > 1);
-            rootVisualElement.Q<Button>("NextPageButton").SetEnabled(_page < total);
-            rootVisualElement.Q<Button>("PrevPageButton").clicked -= OnPrevPageClicked;
-            rootVisualElement.Q<Button>("NextPageButton").clicked -= OnNextPageClicked;
-            rootVisualElement.Q<Button>("PrevPageButton").clicked += OnPrevPageClicked;
-            rootVisualElement.Q<Button>("NextPageButton").clicked += OnNextPageClicked;
+            RefreshPaginationFooter();
 
             UpdateConfirmButtonState();
             ShowDetail(_detailItem);

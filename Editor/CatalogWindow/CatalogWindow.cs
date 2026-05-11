@@ -91,6 +91,16 @@ namespace com.amari_noa.blm_integration_core.editor
         private Label _detailProductNameLabel;
         private Label _detailShopNameLabel;
         private Label _detailProductListLabel;
+        private TextField _paginationCurrentField;
+        private Button _paginationMinPageButton;
+        private Button _paginationPrev2Button;
+        private Button _paginationPrev1Button;
+        private Label _paginationMinDotLabel;
+        private Button _paginationMaxPageButton;
+        private Button _paginationNext1Button;
+        private Button _paginationNext2Button;
+        private Label _paginationMaxDotLabel;
+        private bool _suppressPaginationFieldCallback;
         private Label _importedStateLabel;
         private Label _detailFolderPathLabel;
         private Label _importQueueTitleLabel;
@@ -523,6 +533,16 @@ namespace com.amari_noa.blm_integration_core.editor
             _detailProductNameLabel = rootVisualElement.Q<Label>("DetailProductNameLabel");
             _detailShopNameLabel = rootVisualElement.Q<Label>("DetailShopNameLabel");
             _detailProductListLabel = rootVisualElement.Q<Label>("DetailProductListLabel");
+            _paginationCurrentField = rootVisualElement.Q<TextField>("CurrentPageField");
+            _paginationMinPageButton = rootVisualElement.Q<Button>("ButtonMinPage");
+            _paginationPrev2Button = rootVisualElement.Q<Button>("AutoGenerateButtonMin3");
+            _paginationPrev1Button = rootVisualElement.Q<Button>("AutoGenerateButtonMin4");
+            _paginationMinDotLabel = rootVisualElement.Q<Label>("AutoGenerateButtonMinDot");
+            _paginationMaxPageButton = rootVisualElement.Q<Button>("ButtonMaxPage");
+            _paginationNext1Button = rootVisualElement.Q<Button>("AutoGenerateButtonBig6");
+            _paginationNext2Button = rootVisualElement.Q<Button>("AutoGenerateButtonBig7");
+            _paginationMaxDotLabel = rootVisualElement.Q<Label>("AutoGenerateButtonMaxDot");
+            SetupPaginationFooter();
             _importedStateLabel = rootVisualElement.Q<Label>("ImportedStateLabel");
             _detailFolderPathLabel = rootVisualElement.Q<Label>("DetailFolderPathLabel");
             _importQueueTitleLabel = rootVisualElement.Q<Label>("ImportQueueTitleLabel");
@@ -1964,18 +1984,164 @@ namespace com.amari_noa.blm_integration_core.editor
             return int.MaxValue;
         }
 
-        private void OnPrevPageClicked()
+        private void SetupPaginationFooter()
         {
-            if (_page <= 1) return;
-            _page--;
+            if (_paginationCurrentField != null)
+            {
+                _paginationCurrentField.RegisterValueChangedCallback(OnPaginationFieldValueChanged);
+                _paginationCurrentField.RegisterCallback<KeyDownEvent>(OnPaginationFieldKeyDown);
+                _paginationCurrentField.RegisterCallback<FocusOutEvent>(OnPaginationFieldFocusOut);
+            }
+
+            BindPaginationButton(_paginationMinPageButton);
+            BindPaginationButton(_paginationPrev2Button);
+            BindPaginationButton(_paginationPrev1Button);
+            BindPaginationButton(_paginationMaxPageButton);
+            BindPaginationButton(_paginationNext1Button);
+            BindPaginationButton(_paginationNext2Button);
+        }
+
+        private void BindPaginationButton(Button button)
+        {
+            if (button == null)
+            {
+                return;
+            }
+
+            button.clicked += () => OnPaginationButtonClicked(button);
+        }
+
+        private void OnPaginationButtonClicked(Button button)
+        {
+            if (button?.userData is int targetPage)
+            {
+                NavigateToPage(targetPage);
+            }
+        }
+
+        private void OnPaginationFieldValueChanged(ChangeEvent<string> evt)
+        {
+            if (_suppressPaginationFieldCallback)
+            {
+                return;
+            }
+
+            var input = evt.newValue ?? string.Empty;
+            var filtered = new string(input.Where(char.IsDigit).ToArray());
+            if (!string.Equals(filtered, input, StringComparison.Ordinal))
+            {
+                _suppressPaginationFieldCallback = true;
+                _paginationCurrentField.SetValueWithoutNotify(filtered);
+                _suppressPaginationFieldCallback = false;
+            }
+        }
+
+        private void OnPaginationFieldKeyDown(KeyDownEvent evt)
+        {
+            if (evt.keyCode != KeyCode.Return && evt.keyCode != KeyCode.KeypadEnter)
+            {
+                return;
+            }
+
+            CommitPaginationFieldInput();
+            evt.StopPropagation();
+        }
+
+        private void OnPaginationFieldFocusOut(FocusOutEvent evt)
+        {
+            CommitPaginationFieldInput();
+        }
+
+        private void CommitPaginationFieldInput()
+        {
+            if (_paginationCurrentField == null)
+            {
+                return;
+            }
+
+            var text = _paginationCurrentField.value ?? string.Empty;
+            if (!int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed))
+            {
+                SetPaginationFieldTextSilently(_page.ToString(CultureInfo.InvariantCulture));
+                return;
+            }
+
+            NavigateToPage(parsed);
+        }
+
+        private void NavigateToPage(int targetPage)
+        {
+            var total = TotalPages();
+            var clamped = Mathf.Clamp(targetPage, 1, total);
+            if (clamped == _page)
+            {
+                SetPaginationFieldTextSilently(_page.ToString(CultureInfo.InvariantCulture));
+                return;
+            }
+
+            _page = clamped;
             RebuildGrid();
         }
 
-        private void OnNextPageClicked()
+        private void SetPaginationFieldTextSilently(string text)
         {
-            if (_page >= TotalPages()) return;
-            _page++;
-            RebuildGrid();
+            if (_paginationCurrentField == null)
+            {
+                return;
+            }
+
+            _suppressPaginationFieldCallback = true;
+            _paginationCurrentField.SetValueWithoutNotify(text ?? string.Empty);
+            _suppressPaginationFieldCallback = false;
+        }
+
+        private void RefreshPaginationFooter()
+        {
+            var total = TotalPages();
+            var current = Mathf.Clamp(_page, 1, total);
+
+            SetPaginationFieldTextSilently(current.ToString(CultureInfo.InvariantCulture));
+
+            var pagesBelow = current - 1;
+            ApplyPaginationButton(_paginationMinPageButton, pagesBelow >= 1, 1);
+            ApplyPaginationButton(_paginationPrev1Button, pagesBelow >= 2, current - 1);
+            ApplyPaginationButton(_paginationPrev2Button, pagesBelow >= 3, current - 2);
+            ApplyPaginationDot(_paginationMinDotLabel, pagesBelow >= 4);
+
+            var pagesAbove = total - current;
+            ApplyPaginationButton(_paginationMaxPageButton, pagesAbove >= 1, total);
+            ApplyPaginationButton(_paginationNext1Button, pagesAbove >= 2, current + 1);
+            ApplyPaginationButton(_paginationNext2Button, pagesAbove >= 3, current + 2);
+            ApplyPaginationDot(_paginationMaxDotLabel, pagesAbove >= 4);
+        }
+
+        private static void ApplyPaginationButton(Button button, bool visible, int targetPage)
+        {
+            if (button == null)
+            {
+                return;
+            }
+
+            button.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
+            if (visible)
+            {
+                button.userData = targetPage;
+                button.text = targetPage.ToString(CultureInfo.InvariantCulture);
+            }
+            else
+            {
+                button.userData = null;
+            }
+        }
+
+        private static void ApplyPaginationDot(Label label, bool visible)
+        {
+            if (label == null)
+            {
+                return;
+            }
+
+            label.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
         private void OnOpenFolderPathClicked()

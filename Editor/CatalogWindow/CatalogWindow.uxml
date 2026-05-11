@@ -76,11 +76,19 @@
                 </ui:ScrollView>
             </ui:VisualElement>
             <ui:VisualElement name="CatalogFooter" style="flex-grow: 1; max-height: 34px; min-height: 34px; flex-direction: row; align-items: center; align-self: center;">
-                <ui:Button text="&lt;" parse-escape-sequences="true" display-tooltip-when-elided="true" name="PrevPageButton" />
-                <ui:Label tabindex="-1" text="1" parse-escape-sequences="true" display-tooltip-when-elided="true" name="CurrentPageLabel" />
-                <ui:Label tabindex="-1" text="/" parse-escape-sequences="true" display-tooltip-when-elided="true" />
-                <ui:Label tabindex="-1" text="1" parse-escape-sequences="true" display-tooltip-when-elided="true" name="TotalPageLabel" />
-                <ui:Button text="&gt;" parse-escape-sequences="true" display-tooltip-when-elided="true" name="NextPageButton" />
+                <ui:VisualElement name="MinPageButtons" style="flex-grow: 1; flex-direction: row-reverse; -unity-text-align: upper-center;">
+                    <ui:Button text="4" parse-escape-sequences="true" display-tooltip-when-elided="true" name="AutoGenerateButtonMin4" style="width: 30px;" />
+                    <ui:Button text="3" parse-escape-sequences="true" display-tooltip-when-elided="true" name="AutoGenerateButtonMin3" style="width: 30px;" />
+                    <ui:Label tabindex="-1" text="..." parse-escape-sequences="true" display-tooltip-when-elided="true" name="AutoGenerateButtonMinDot" style="width: 30px;" />
+                    <ui:Button text="1" parse-escape-sequences="true" display-tooltip-when-elided="true" name="ButtonMinPage" style="width: 30px;" />
+                </ui:VisualElement>
+                <ui:TextField name="CurrentPageField" value="1" style="width: 40px; max-width: 40px; min-width: 40px; -unity-text-align: middle-center;" />
+                <ui:VisualElement name="MaxPageButtons" style="flex-grow: 1; flex-direction: row;">
+                    <ui:Button text="6" parse-escape-sequences="true" display-tooltip-when-elided="true" name="AutoGenerateButtonBig6" style="width: 30px;" />
+                    <ui:Button text="7" parse-escape-sequences="true" display-tooltip-when-elided="true" name="AutoGenerateButtonBig7" style="width: 30px;" />
+                    <ui:Label tabindex="-1" text="..." parse-escape-sequences="true" display-tooltip-when-elided="true" name="AutoGenerateButtonMaxDot" style="width: 30px; -unity-text-align: upper-center;" />
+                    <ui:Button text="9" parse-escape-sequences="true" display-tooltip-when-elided="true" name="ButtonMaxPage" style="width: 30px;" />
+                </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
         <ui:VisualElement name="RightPanel" style="flex-grow: 1; max-width: 30%; min-width: 30%; padding-top: 8px; padding-right: 8px; padding-bottom: 8px; padding-left: 8px;">
