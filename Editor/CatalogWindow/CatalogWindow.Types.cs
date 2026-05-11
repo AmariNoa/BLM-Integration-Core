@@ -1,11 +1,41 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using com.amari_noa.unitypackage_pipeline_core.editor;
 
 namespace com.amari_noa.blm_integration_core.editor
 {
     public sealed partial class CatalogWindow
     {
+        private enum ImportedStateUnityPackageRecordKind
+        {
+            Asset = 0,
+            Meta = 1
+        }
+
+        private readonly struct ImportedStateUnityPackageCheckRecord
+        {
+            public string Guid { get; }
+            public ImportedStateUnityPackageRecordKind Kind { get; }
+            public string AssetSha256 { get; }
+            public string MetaSha256 { get; }
+            public string MetaGuid { get; }
+
+            public ImportedStateUnityPackageCheckRecord(
+                string guid,
+                ImportedStateUnityPackageRecordKind kind,
+                string assetSha256,
+                string metaSha256,
+                string metaGuid)
+            {
+                Guid = guid ?? string.Empty;
+                Kind = kind;
+                AssetSha256 = assetSha256 ?? string.Empty;
+                MetaSha256 = metaSha256 ?? string.Empty;
+                MetaGuid = metaGuid ?? string.Empty;
+            }
+        }
+
         private enum SelectedItemsFilterMode
         {
             SelectedAndPreferred = 0,
@@ -52,8 +82,8 @@ namespace com.amari_noa.blm_integration_core.editor
         private sealed class ImportedStateUnityPackageCheckState
         {
             public ImportedStateCheckWorkItem WorkItem { get; }
-            public IReadOnlyList<BlmUnityPackageAssetEntry> Entries { get; }
-            public int NextEntryIndex { get; set; }
+            public IReadOnlyList<ImportedStateUnityPackageCheckRecord> Records { get; }
+            public int NextRecordIndex { get; set; }
             public bool HasImportedEntries { get; set; }
             public bool HasMissingEntries { get; set; }
             public Task<bool> ActiveAssetHashComparisonTask { get; set; }
@@ -61,11 +91,11 @@ namespace com.amari_noa.blm_integration_core.editor
 
             public ImportedStateUnityPackageCheckState(
                 ImportedStateCheckWorkItem workItem,
-                IReadOnlyList<BlmUnityPackageAssetEntry> entries)
+                IReadOnlyList<ImportedStateUnityPackageCheckRecord> records)
             {
                 WorkItem = workItem;
-                Entries = entries ?? Array.Empty<BlmUnityPackageAssetEntry>();
-                NextEntryIndex = 0;
+                Records = records ?? Array.Empty<ImportedStateUnityPackageCheckRecord>();
+                NextRecordIndex = 0;
             }
         }
 

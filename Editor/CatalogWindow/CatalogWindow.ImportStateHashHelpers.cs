@@ -40,9 +40,10 @@ namespace com.amari_noa.blm_integration_core.editor
 
             if (RequiresImportedStateBackgroundPreload(workItem.File))
             {
-                _ = BlmUnityPackageGuidCache.Shared.TryGetEntries(
+                _ = BlmUnityPackageGuidCache.Shared.TryGetContentEntries(
                     workItem.File.FullPath,
                     cancellationToken,
+                    out _,
                     out _);
             }
 
@@ -81,6 +82,47 @@ namespace com.amari_noa.blm_integration_core.editor
                 rightFilePath,
                 cancellationToken,
                 out areEqual);
+        }
+
+        private static bool TryReadMetaGuidFromFile(string metaPath, out string guid)
+        {
+            guid = string.Empty;
+            if (string.IsNullOrWhiteSpace(metaPath) || !File.Exists(metaPath))
+            {
+                return false;
+            }
+
+            try
+            {
+                foreach (var line in File.ReadLines(metaPath))
+                {
+                    if (string.IsNullOrWhiteSpace(line))
+                    {
+                        continue;
+                    }
+
+                    var trimmed = line.Trim();
+                    if (!trimmed.StartsWith("guid:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    var value = trimmed["guid:".Length..].Trim();
+                    if (string.IsNullOrWhiteSpace(value))
+                    {
+                        continue;
+                    }
+
+                    guid = value;
+                    return true;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+
+            return false;
         }
 
         private static bool TryGetDestinationFileSnapshot(

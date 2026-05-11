@@ -57,6 +57,7 @@
       "imported_state": {
         "checking": "インポートファイルチェック中 ({0}/{1})",
         "checking_entries": "エントリをチェック中 ({0}/{1})",
+        "parsing_entries": "エントリ情報をパース中...",
         "has_imported_files": "インポート済みファイルあり",
         "tooltip": {
           "imported": "インポート済み",

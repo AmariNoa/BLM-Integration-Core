@@ -57,6 +57,7 @@
       "imported_state": {
         "checking": "Checking imported files... ({0}/{1})",
         "checking_entries": "Checking entries... ({0}/{1})",
+        "parsing_entries": "Parsing entries...",
         "has_imported_files": "Imported files found",
         "tooltip": {
           "imported": "Imported",

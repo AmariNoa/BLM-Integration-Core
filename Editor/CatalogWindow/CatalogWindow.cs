@@ -2364,6 +2364,7 @@ namespace com.amari_noa.blm_integration_core.editor
                     _activeImportedStatePreloadTask = Task.Run(
                         () => PreloadImportedStateWorkItem(workItem, cancellationToken),
                         cancellationToken);
+                    UpdateImportedStateLabel(workItem.Item ?? _detailItem);
                     break;
                 }
 
@@ -2420,81 +2421,48 @@ namespace com.amari_noa.blm_integration_core.editor
 
             var checksRemaining = ImportedStateUnityPackageGuidChecksPerUpdate;
             while (checksRemaining > 0 &&
-                   state.NextEntryIndex < state.Entries.Count &&
+                   state.NextRecordIndex < state.Records.Count &&
                    !(state.HasImportedEntries && state.HasMissingEntries))
             {
-                var entry = state.Entries[state.NextEntryIndex];
-                state.NextEntryIndex++;
+                var record = state.Records[state.NextRecordIndex];
+                state.NextRecordIndex++;
                 checksRemaining--;
 
-                if (string.IsNullOrWhiteSpace(entry.Guid) ||
+                if (string.IsNullOrWhiteSpace(record.Guid) ||
                     !BlmImportIndexService.Shared.TryGetImportedGuidAssetPathForProduct(
                         state.WorkItem.Item?.ProductId,
-                        entry.Guid,
+                        record.Guid,
                         out var destinationAssetPath))
                 {
                     state.HasMissingEntries = true;
                     continue;
                 }
 
-                if (!entry.HasAssetData)
-                {
-                    state.HasImportedEntries = true;
-                    continue;
-                }
-
-                if (string.IsNullOrWhiteSpace(entry.AssetSha256) ||
-                    !BlmImportIndexService.Shared.TryResolveAssetAbsolutePath(destinationAssetPath, out var destinationAbsolutePath))
+                if (!BlmImportIndexService.Shared.TryResolveAssetAbsolutePath(destinationAssetPath, out var destinationAbsolutePath))
                 {
                     state.HasMissingEntries = true;
                     continue;
                 }
 
-                BlmImportedStateCacheEntry cacheEntry = null;
-                if (TryGetDestinationFileSnapshot(destinationAbsolutePath, out var destFileSize, out var destLastWriteTimeUtcTicks) &&
-                    _importedStateCacheService.TryBuildEntry(
-                        state.WorkItem.Item?.ProductId,
-                        state.WorkItem.File?.FullPath,
-                        state.WorkItem.ImportIndexFingerprint,
-                        entry.Guid,
-                        destFileSize,
-                        destLastWriteTimeUtcTicks,
-                        out var builtCacheEntry))
+                var processed = record.Kind == ImportedStateUnityPackageRecordKind.Asset
+                    ? TryProcessAssetRecord(state, record, destinationAbsolutePath)
+                    : TryProcessMetaRecord(state, record, destinationAbsolutePath);
+                if (processed == ImportedStateRecordProcessingResult.HashTaskLaunched)
                 {
-                    cacheEntry = builtCacheEntry;
-                    if (_importedStateCacheService.TryGet(cacheEntry, out var cachedImported))
-                    {
-                        if (cachedImported)
-                        {
-                            state.HasImportedEntries = true;
-                        }
-                        else
-                        {
-                            state.HasMissingEntries = true;
-                        }
-
-                        continue;
-                    }
+                    break;
                 }
-
-                var cancellationToken = _activeImportedStateCancellationTokenSource?.Token ?? CancellationToken.None;
-                state.PendingCacheEntry = cacheEntry;
-                state.ActiveAssetHashComparisonTask = Task.Run(
-                    () => TryIsUnityPackageAssetHashMatch(destinationAbsolutePath, entry.AssetSha256, cancellationToken),
-                    cancellationToken);
-                break;
             }
 
             if (state.ActiveAssetHashComparisonTask == null &&
                 ((state.HasImportedEntries && state.HasMissingEntries) ||
-                 state.NextEntryIndex >= state.Entries.Count))
+                 state.NextRecordIndex >= state.Records.Count))
             {
                 var importedState = DetermineUnityPackageImportedState(state.HasImportedEntries, state.HasMissingEntries);
+                _activeImportedStateUnityPackageCheck = null;
                 UpdateImportedStateForFile(
                     state.WorkItem.Item?.ProductId,
                     state.WorkItem.File,
                     importedState);
-                _activeImportedStateUnityPackageCheck = null;
             }
             else
             {
@@ -2502,6 +2470,128 @@ namespace com.amari_noa.blm_integration_core.editor
             }
 
             return true;
+        }
+
+        private enum ImportedStateRecordProcessingResult
+        {
+            ResolvedSynchronously = 0,
+            HashTaskLaunched = 1
+        }
+
+        private ImportedStateRecordProcessingResult TryProcessAssetRecord(
+            ImportedStateUnityPackageCheckState state,
+            ImportedStateUnityPackageCheckRecord record,
+            string destinationAbsolutePath)
+        {
+            if (string.IsNullOrWhiteSpace(record.AssetSha256))
+            {
+                state.HasMissingEntries = true;
+                return ImportedStateRecordProcessingResult.ResolvedSynchronously;
+            }
+
+            BlmImportedStateCacheEntry cacheEntry = null;
+            if (TryGetDestinationFileSnapshot(destinationAbsolutePath, out var destFileSize, out var destLastWriteTimeUtcTicks) &&
+                _importedStateCacheService.TryBuildEntry(
+                    state.WorkItem.Item?.ProductId,
+                    state.WorkItem.File?.FullPath,
+                    state.WorkItem.ImportIndexFingerprint,
+                    record.Guid,
+                    destFileSize,
+                    destLastWriteTimeUtcTicks,
+                    out var builtCacheEntry))
+            {
+                cacheEntry = builtCacheEntry;
+                if (_importedStateCacheService.TryGet(cacheEntry, out var cachedImported))
+                {
+                    if (cachedImported)
+                    {
+                        state.HasImportedEntries = true;
+                    }
+                    else
+                    {
+                        state.HasMissingEntries = true;
+                    }
+
+                    return ImportedStateRecordProcessingResult.ResolvedSynchronously;
+                }
+            }
+
+            var cancellationToken = _activeImportedStateCancellationTokenSource?.Token ?? CancellationToken.None;
+            var expectedSha256 = record.AssetSha256;
+            state.PendingCacheEntry = cacheEntry;
+            state.ActiveAssetHashComparisonTask = Task.Run(
+                () => TryIsUnityPackageAssetHashMatch(destinationAbsolutePath, expectedSha256, cancellationToken),
+                cancellationToken);
+            return ImportedStateRecordProcessingResult.HashTaskLaunched;
+        }
+
+        private ImportedStateRecordProcessingResult TryProcessMetaRecord(
+            ImportedStateUnityPackageCheckState state,
+            ImportedStateUnityPackageCheckRecord record,
+            string destinationAbsolutePath)
+        {
+            var absoluteMetaPath = destinationAbsolutePath + ".meta";
+            if (!File.Exists(absoluteMetaPath))
+            {
+                state.HasMissingEntries = true;
+                return ImportedStateRecordProcessingResult.ResolvedSynchronously;
+            }
+
+            if (!string.IsNullOrWhiteSpace(record.MetaGuid) &&
+                TryReadMetaGuidFromFile(absoluteMetaPath, out var projectMetaGuid))
+            {
+                if (string.Equals(projectMetaGuid, record.MetaGuid, StringComparison.OrdinalIgnoreCase))
+                {
+                    state.HasImportedEntries = true;
+                }
+                else
+                {
+                    state.HasMissingEntries = true;
+                }
+
+                return ImportedStateRecordProcessingResult.ResolvedSynchronously;
+            }
+
+            if (string.IsNullOrWhiteSpace(record.MetaSha256))
+            {
+                state.HasMissingEntries = true;
+                return ImportedStateRecordProcessingResult.ResolvedSynchronously;
+            }
+
+            BlmImportedStateCacheEntry cacheEntry = null;
+            if (TryGetDestinationFileSnapshot(absoluteMetaPath, out var metaFileSize, out var metaLastWriteTimeUtcTicks) &&
+                _importedStateCacheService.TryBuildEntry(
+                    state.WorkItem.Item?.ProductId,
+                    state.WorkItem.File?.FullPath,
+                    state.WorkItem.ImportIndexFingerprint,
+                    record.Guid,
+                    metaFileSize,
+                    metaLastWriteTimeUtcTicks,
+                    out var builtCacheEntry))
+            {
+                cacheEntry = builtCacheEntry;
+                if (_importedStateCacheService.TryGet(cacheEntry, out var cachedImported))
+                {
+                    if (cachedImported)
+                    {
+                        state.HasImportedEntries = true;
+                    }
+                    else
+                    {
+                        state.HasMissingEntries = true;
+                    }
+
+                    return ImportedStateRecordProcessingResult.ResolvedSynchronously;
+                }
+            }
+
+            var cancellationToken = _activeImportedStateCancellationTokenSource?.Token ?? CancellationToken.None;
+            var expectedSha256 = record.MetaSha256;
+            state.PendingCacheEntry = cacheEntry;
+            state.ActiveAssetHashComparisonTask = Task.Run(
+                () => TryIsUnityPackageAssetHashMatch(absoluteMetaPath, expectedSha256, cancellationToken),
+                cancellationToken);
+            return ImportedStateRecordProcessingResult.HashTaskLaunched;
         }
 
         private bool ProcessActiveImportedStateNonUnityContentCheck()
@@ -2604,9 +2694,9 @@ namespace com.amari_noa.blm_integration_core.editor
                 return;
             }
 
-            if (!BlmUnityPackageGuidCache.Shared.TryGetEntries(workItem.File?.FullPath, out var entries) ||
-                entries == null ||
-                entries.Count == 0)
+            if (!BlmUnityPackageGuidCache.Shared.TryGetContentEntries(workItem.File?.FullPath, out var contentEntries, out _) ||
+                contentEntries == null ||
+                contentEntries.Count == 0)
             {
                 UpdateImportedStateForFile(
                     workItem.Item?.ProductId,
@@ -2615,7 +2705,59 @@ namespace com.amari_noa.blm_integration_core.editor
                 return;
             }
 
-            _activeImportedStateUnityPackageCheck = new ImportedStateUnityPackageCheckState(workItem, entries);
+            var records = BuildImportedStateUnityPackageCheckRecords(contentEntries);
+            if (records.Count == 0)
+            {
+                UpdateImportedStateForFile(
+                    workItem.Item?.ProductId,
+                    workItem.File,
+                    ImportedStateRowHighlightKind.None);
+                return;
+            }
+
+            _activeImportedStateUnityPackageCheck = new ImportedStateUnityPackageCheckState(workItem, records);
+        }
+
+        private static IReadOnlyList<ImportedStateUnityPackageCheckRecord> BuildImportedStateUnityPackageCheckRecords(
+            IReadOnlyList<AmariUnityPackageContentEntry> entries)
+        {
+            if (entries == null || entries.Count == 0)
+            {
+                return Array.Empty<ImportedStateUnityPackageCheckRecord>();
+            }
+
+            var records = new List<ImportedStateUnityPackageCheckRecord>(entries.Count);
+            foreach (var entry in entries)
+            {
+                if (string.IsNullOrWhiteSpace(entry.Guid) ||
+                    string.IsNullOrWhiteSpace(entry.Pathname) ||
+                    (!entry.HasAsset && !entry.HasMeta))
+                {
+                    continue;
+                }
+
+                if (entry.HasAsset)
+                {
+                    records.Add(new ImportedStateUnityPackageCheckRecord(
+                        entry.Guid,
+                        ImportedStateUnityPackageRecordKind.Asset,
+                        entry.AssetSha256,
+                        string.Empty,
+                        string.Empty));
+                }
+
+                if (entry.HasMeta)
+                {
+                    records.Add(new ImportedStateUnityPackageCheckRecord(
+                        entry.Guid,
+                        ImportedStateUnityPackageRecordKind.Meta,
+                        string.Empty,
+                        entry.MetaSha256,
+                        entry.MetaGuid));
+                }
+            }
+
+            return records;
         }
 
         private bool ShouldStopImportedStateCheckLoop()
@@ -2966,31 +3108,35 @@ namespace com.amari_noa.blm_integration_core.editor
                 totalCount);
 
             var entryLine = BuildImportedStateCheckingEntriesLabelText();
-            return string.IsNullOrEmpty(entryLine)
-                ? fileLine
-                : fileLine + "\n" + entryLine;
+            return fileLine + "\n" + entryLine;
         }
 
         private string BuildImportedStateCheckingEntriesLabelText()
         {
             var state = _activeImportedStateUnityPackageCheck;
-            if (state == null || state.WorkItem.EvaluationVersion != _importedStateEvaluationVersion)
+            if (state != null && state.WorkItem.EvaluationVersion == _importedStateEvaluationVersion)
             {
-                return string.Empty;
+                var recordsCount = state.Records?.Count ?? 0;
+                if (recordsCount > 0)
+                {
+                    var currentProcessingIndex = Math.Max(1, Math.Min(recordsCount, state.NextRecordIndex));
+                    return string.Format(
+                        CultureInfo.InvariantCulture,
+                        L("blm.detail.imported_state.checking_entries", "Checking entries... ({0}/{1})"),
+                        currentProcessingIndex,
+                        recordsCount);
+                }
             }
 
-            var entriesCount = state.Entries?.Count ?? 0;
-            if (entriesCount <= 0)
+            if (_activeImportedStatePreloadTask != null &&
+                _activeImportedStatePreloadWorkItem.HasValue &&
+                _activeImportedStatePreloadWorkItem.Value.EvaluationVersion == _importedStateEvaluationVersion &&
+                RequiresImportedStateBackgroundPreload(_activeImportedStatePreloadWorkItem.Value.File))
             {
-                return string.Empty;
+                return L("blm.detail.imported_state.parsing_entries", "Parsing entries...");
             }
 
-            var currentProcessingIndex = Math.Max(1, Math.Min(entriesCount, state.NextEntryIndex));
-            return string.Format(
-                CultureInfo.InvariantCulture,
-                L("blm.detail.imported_state.checking_entries", "Checking entries... ({0}/{1})"),
-                currentProcessingIndex,
-                entriesCount);
+            return string.Empty;
         }
 
         private void SetImportedStateLabel(string text, bool visible)
