@@ -39,8 +39,8 @@ namespace com.amari_noa.blm_integration_core.editor
         internal const int ImportedStateCacheSchemaVersion = 1;
         internal const string ImportedStateCacheRelativePath = "Library/BlmIntegrationCore/imported-state-cache-v1.json";
         internal const int UnityPackageGuidCacheMaxEntries = 300;
-        internal const int UnityPackageGuidCacheSchemaVersion = 1;
-        internal const string UnityPackageGuidCacheRelativePath = "Library/BlmIntegrationCore/unitypackage-guid-cache-v1.json";
+        internal const int UnityPackageGuidCacheSchemaVersion = 2;
+        internal const string UnityPackageGuidCacheRelativePath = "Library/BlmIntegrationCore/unitypackage-guid-cache-v2.json";
         internal static readonly string[] IntegrationPreferredDisplayExtensions = { ".unitypackage", ".amri" };
         internal static readonly string[] StandalonePreferredDisplayExtensions = { ".unitypackage" };
 
