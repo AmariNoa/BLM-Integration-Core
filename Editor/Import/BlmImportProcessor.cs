@@ -102,7 +102,7 @@ namespace com.amari_noa.blm_integration_core.editor
 
             try
             {
-                pipelineService.PreImportAnalysisMode = AmariUnityPackagePreImportAnalysisMode.Skip;
+                pipelineService.PreImportAnalysisMode = AmariUnityPackagePreImportAnalysisMode.Full;
                 pipelineService.QuietMode = true;
 
                 foreach (var item in request.Items)

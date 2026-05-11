@@ -2985,9 +2985,7 @@ namespace com.amari_noa.blm_integration_core.editor
                 return string.Empty;
             }
 
-            var hasActiveTask = state.ActiveAssetHashComparisonTask != null;
-            var processedCount = Math.Max(0, state.NextEntryIndex - (hasActiveTask ? 1 : 0));
-            var currentProcessingIndex = Math.Min(entriesCount, processedCount + 1);
+            var currentProcessingIndex = Math.Max(1, Math.Min(entriesCount, state.NextEntryIndex));
             return string.Format(
                 CultureInfo.InvariantCulture,
                 L("blm.detail.imported_state.checking_entries", "Checking entries... ({0}/{1})"),

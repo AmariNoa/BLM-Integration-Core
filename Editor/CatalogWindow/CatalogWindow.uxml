@@ -91,7 +91,7 @@
                     </ui:VisualElement>
                     <ui:VisualElement name="DetailThumbnailImage" style="flex-grow: 0; flex-shrink: 0; min-height: 120px; margin-top: 4px; margin-right: 4px; margin-bottom: 4px; margin-left: 4px;" />
                     <ui:VisualElement style="flex-grow: 1; max-height: 10px; min-height: 10px;" />
-                    <ui:Label tabindex="-1" text="Product imported state" parse-escape-sequences="true" display-tooltip-when-elided="true" name="ImportedStateLabel" style="-unity-text-align: upper-center; white-space: normal; max-height: 50px; min-height: 30px;" />
+                    <ui:Label tabindex="-1" text="Product imported state" parse-escape-sequences="true" display-tooltip-when-elided="true" name="ImportedStateLabel" style="-unity-text-align: upper-center; white-space: normal; max-height: 50px; min-height: 50px;" />
                     <ui:VisualElement style="flex-grow: 1; max-height: 10px; min-height: 10px;" />
                     <ui:VisualElement style="flex-grow: 1; flex-shrink: 1; min-height: 0;">
                         <ui:Label tabindex="-1" text="Product file(s)" parse-escape-sequences="true" display-tooltip-when-elided="true" name="DetailProductListLabel" style="-unity-text-align: middle-left;" />
