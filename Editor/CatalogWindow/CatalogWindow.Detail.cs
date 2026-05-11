@@ -21,10 +21,10 @@ namespace com.amari_noa.blm_integration_core.editor
                 _detailFilesLoadingProductId = string.Empty;
                 CancelDetailFileLoadBackgroundWork(disposeSource: false);
                 CancelDetailThumbnailLoad(disposeSource: false);
-                _detailProductNameLabel.text = L("blm.detail.product_name", "Product name");
+                _detailProductNameLabel.text = string.Empty;
                 if (_detailShopNameLabel != null)
                 {
-                    _detailShopNameLabel.text = L("blm.detail.shop_name", "Shop name");
+                    _detailShopNameLabel.text = string.Empty;
                 }
                 _detailFolderPathLabel.text = L("blm.detail.folder_path", "Folder path");
                 CancelImportedStateEvaluation();
