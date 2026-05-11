@@ -22,6 +22,10 @@ namespace com.amari_noa.blm_integration_core.editor
                 CancelDetailFileLoadBackgroundWork(disposeSource: false);
                 CancelDetailThumbnailLoad(disposeSource: false);
                 _detailProductNameLabel.text = L("blm.detail.product_name", "Product name");
+                if (_detailShopNameLabel != null)
+                {
+                    _detailShopNameLabel.text = L("blm.detail.shop_name", "Shop name");
+                }
                 _detailFolderPathLabel.text = L("blm.detail.folder_path", "Folder path");
                 CancelImportedStateEvaluation();
                 UpdateImportedStateLabel(null);
@@ -38,6 +42,10 @@ namespace com.amari_noa.blm_integration_core.editor
             }
 
             _detailProductNameLabel.text = item.ProductName;
+            if (_detailShopNameLabel != null)
+            {
+                _detailShopNameLabel.text = item.ShopName ?? string.Empty;
+            }
             _detailFolderPathLabel.text = string.IsNullOrWhiteSpace(item.RootFolderPath)
                 ? L("blm.detail.loading_files", "Loading files...")
                 : item.RootFolderPath;

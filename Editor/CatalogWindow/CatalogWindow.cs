@@ -89,6 +89,7 @@ namespace com.amari_noa.blm_integration_core.editor
         private Button _confirmButton;
         private Button _openFolderPathButton;
         private Label _detailProductNameLabel;
+        private Label _detailShopNameLabel;
         private Label _detailProductListLabel;
         private Label _importedStateLabel;
         private Label _detailFolderPathLabel;
@@ -520,6 +521,7 @@ namespace com.amari_noa.blm_integration_core.editor
             _cancelButton = rootVisualElement.Q<Button>("CancelButton");
             _openFolderPathButton = rootVisualElement.Q<Button>("OpenFolderPathButton");
             _detailProductNameLabel = rootVisualElement.Q<Label>("DetailProductNameLabel");
+            _detailShopNameLabel = rootVisualElement.Q<Label>("DetailShopNameLabel");
             _detailProductListLabel = rootVisualElement.Q<Label>("DetailProductListLabel");
             _importedStateLabel = rootVisualElement.Q<Label>("ImportedStateLabel");
             _detailFolderPathLabel = rootVisualElement.Q<Label>("DetailFolderPathLabel");

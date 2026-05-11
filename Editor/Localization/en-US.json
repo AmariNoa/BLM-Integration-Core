@@ -53,6 +53,7 @@
     "page_size": "Page size",
     "detail": {
       "product_name": "Product name",
+      "shop_name": "Shop name",
       "product_files": "Product file(s)",
       "imported_state": {
         "checking": "Checking imported files... ({0}/{1})",

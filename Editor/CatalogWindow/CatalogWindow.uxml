@@ -86,8 +86,9 @@
         <ui:VisualElement name="RightPanel" style="flex-grow: 1; max-width: 30%; min-width: 30%; padding-top: 8px; padding-right: 8px; padding-bottom: 8px; padding-left: 8px;">
             <ui:VisualElement style="flex-grow: 1; flex-direction: row; min-height: 0;">
                 <ui:VisualElement style="flex-grow: 1; min-height: 0; max-width: 50%; min-width: 50%; padding-top: 5px; padding-right: 5px; padding-bottom: 5px; padding-left: 5px;">
-                    <ui:VisualElement style="flex-grow: 0; flex-shrink: 0; height: 56px; max-height: 56px; min-height: 56px; overflow: hidden;">
+                    <ui:VisualElement style="flex-grow: 0; flex-shrink: 0; height: 110px; max-height: 110px; min-height: 110px; overflow: hidden;">
                         <ui:Label tabindex="-1" text="Product name" parse-escape-sequences="true" display-tooltip-when-elided="true" name="DetailProductNameLabel" style="height: 56px; max-height: 56px; min-height: 56px; white-space: normal; overflow: hidden; text-overflow: clip; -unity-text-align: upper-center;" />
+                        <ui:Label tabindex="-1" text="Shop name" parse-escape-sequences="true" display-tooltip-when-elided="true" name="DetailShopNameLabel" style="height: 30px; max-height: 30px; min-height: 30px; white-space: normal; overflow: hidden; text-overflow: clip; -unity-text-align: upper-center;" />
                     </ui:VisualElement>
                     <ui:VisualElement name="DetailThumbnailImage" style="flex-grow: 0; flex-shrink: 0; min-height: 120px; margin-top: 4px; margin-right: 4px; margin-bottom: 4px; margin-left: 4px;" />
                     <ui:VisualElement style="flex-grow: 1; max-height: 10px; min-height: 10px;" />
@@ -136,10 +137,10 @@
                 </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
-        <ui:VisualElement name="ImportNowLoadingOverlay" class="blm-import-now-loading-overlay" picking-mode="Position">
+        <ui:VisualElement name="ImportNowLoadingOverlay" class="blm-import-now-loading-overlay">
             <ui:VisualElement name="ImportNowLoadingPanel" class="blm-import-now-loading-panel">
                 <ui:Label tabindex="-1" text="Processing..." parse-escape-sequences="true" display-tooltip-when-elided="true" name="ImportProcessingTitleLabel" class="blm-import-now-loading-label" />
-                <ui:Label tabindex="-1" text="" parse-escape-sequences="true" display-tooltip-when-elided="true" name="ImportProcessingStatusLabel" class="blm-import-now-loading-status-label" />
+                <ui:Label tabindex="-1" parse-escape-sequences="true" display-tooltip-when-elided="true" name="ImportProcessingStatusLabel" class="blm-import-now-loading-status-label" />
             </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>

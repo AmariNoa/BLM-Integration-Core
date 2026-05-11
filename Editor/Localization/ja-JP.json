@@ -53,6 +53,7 @@
     "page_size": "ページサイズ",
     "detail": {
       "product_name": "商品名",
+      "shop_name": "ショップ名",
       "product_files": "商品ファイル",
       "imported_state": {
         "checking": "インポートファイルチェック中 ({0}/{1})",
