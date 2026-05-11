@@ -330,3 +330,8 @@
     font-size: 11px;
     -unity-text-align: middle-center;
 }
+
+#CurrentPageField .unity-base-text-field__input,
+#CurrentPageField .unity-text-element {
+    -unity-text-align: middle-center;
+}
