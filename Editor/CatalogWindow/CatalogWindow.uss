@@ -350,3 +350,8 @@
     margin-left: 0;
     margin-right: 0;
 }
+
+#DetailFileListView .unity-list-view__empty-label,
+#DetailFileListView .unity-collection-view__empty-label {
+    display: none;
+}

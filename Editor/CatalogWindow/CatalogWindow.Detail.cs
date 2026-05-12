@@ -26,7 +26,7 @@ namespace com.amari_noa.blm_integration_core.editor
                 {
                     _detailShopNameLabel.text = string.Empty;
                 }
-                _detailFolderPathLabel.text = L("blm.detail.folder_path", "Folder path");
+                _detailFolderPathLabel.text = string.Empty;
                 CancelImportedStateEvaluation();
                 UpdateImportedStateLabel(null);
                 SetDetailFileActionButtonsEnabled(false);
