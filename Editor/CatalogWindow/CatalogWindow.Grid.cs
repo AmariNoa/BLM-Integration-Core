@@ -9,50 +9,53 @@ namespace com.amari_noa.blm_integration_core.editor
 {
     public sealed partial class CatalogWindow
     {
+        private sealed class CardSlots
+        {
+            public VisualElement Thumb;
+            public Label ProductName;
+            public Label ShopName;
+        }
+
+        private readonly Dictionary<VisualElement, CardSlots> _cardSlots = new Dictionary<VisualElement, CardSlots>();
+        private readonly List<VisualElement> _cardPool = new List<VisualElement>();
+
         private void RebuildGrid()
         {
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             var total = TotalPages();
             _page = Mathf.Clamp(_page, 1, total);
             var pageItems = _viewItems.Skip((_page - 1) * _pageSize).Take(_pageSize).ToList();
-            var rebuiltByDiff = TryRebuildGridByDiff(pageItems);
-            if (!rebuiltByDiff)
-            {
-                RebuildGridFromScratch(pageItems);
-            }
+            var stats = RebuildGridWithPool(pageItems);
 
             RefreshPaginationFooter();
 
             UpdateConfirmButtonState();
-            ShowDetail(_detailItem);
+            var detailProductId = _detailItem?.ProductId ?? string.Empty;
+            if (!string.Equals(_lastShownDetailProductId, detailProductId, StringComparison.Ordinal))
+            {
+                ShowDetail(_detailItem);
+            }
             stopwatch.Stop();
             PerfLog(
                 $"RebuildGrid completed in {stopwatch.ElapsedMilliseconds} ms. " +
-                $"page={_page}/{total}, pageSize={_pageSize}, renderedItems={pageItems.Count}, totalFilteredItems={_viewItems.Count}, mode={(rebuiltByDiff ? "diff" : "full")}");
+                $"page={_page}/{total}, pageSize={_pageSize}, renderedItems={pageItems.Count}, totalFilteredItems={_viewItems.Count}, " +
+                $"reused={stats.Reused}, pooled={stats.FromPool}, built={stats.Built}, poolSize={_cardPool.Count}");
         }
 
-        private bool TryRebuildGridByDiff(IReadOnlyList<BlmItemRecord> pageItems)
+        private (int Reused, int FromPool, int Built) RebuildGridWithPool(IReadOnlyList<BlmItemRecord> pageItems)
         {
-            if (pageItems == null)
+            var targetIds = new HashSet<string>(StringComparer.Ordinal);
+            if (pageItems != null)
             {
-                return false;
+                foreach (var item in pageItems)
+                {
+                    if (item != null && !string.IsNullOrWhiteSpace(item.ProductId))
+                    {
+                        targetIds.Add(item.ProductId);
+                    }
+                }
             }
 
-            if (pageItems.Any(item => item == null || string.IsNullOrWhiteSpace(item.ProductId)))
-            {
-                return false;
-            }
-
-            var distinctCount = pageItems
-                .Select(item => item.ProductId)
-                .Distinct(StringComparer.Ordinal)
-                .Count();
-            if (distinctCount != pageItems.Count)
-            {
-                return false;
-            }
-
-            var targetIds = new HashSet<string>(pageItems.Select(item => item.ProductId), StringComparer.Ordinal);
             foreach (var existingId in _visibleCardsByProductId.Keys.ToList())
             {
                 if (targetIds.Contains(existingId))
@@ -60,9 +63,11 @@ namespace com.amari_noa.blm_integration_core.editor
                     continue;
                 }
 
-                if (_visibleCardsByProductId.TryGetValue(existingId, out var oldCard))
+                if (_visibleCardsByProductId.TryGetValue(existingId, out var releasedCard))
                 {
-                    oldCard.RemoveFromHierarchy();
+                    releasedCard.RemoveFromHierarchy();
+                    ResetCardForPool(releasedCard);
+                    _cardPool.Add(releasedCard);
                 }
 
                 _visibleCardsByProductId.Remove(existingId);
@@ -76,63 +81,127 @@ namespace com.amari_noa.blm_integration_core.editor
                     !targetIds.Contains(boundItem.ProductId))
                 {
                     child.RemoveFromHierarchy();
+                    if (_cardSlots.ContainsKey(child) && !_cardPool.Contains(child))
+                    {
+                        ResetCardForPool(child);
+                        _cardPool.Add(child);
+                    }
                 }
             }
 
-            foreach (var item in pageItems)
+            var parent = _productGridContainer.parent;
+            var siblingIndex = parent?.IndexOf(_productGridContainer) ?? -1;
+            var detached = parent != null && siblingIndex >= 0;
+            if (detached)
             {
-                if (!_visibleCardsByProductId.TryGetValue(item.ProductId, out var card))
-                {
-                    card = BuildCard(item);
-                    _visibleCardsByProductId[item.ProductId] = card;
-                    LoadCardThumbnailAsync(card, item);
-                }
-
-                BindCard(card, item);
+                _productGridContainer.RemoveFromHierarchy();
             }
 
-            for (var i = 0; i < pageItems.Count; i++)
+            var reused = 0;
+            var fromPool = 0;
+            var built = 0;
+            try
             {
-                var item = pageItems[i];
-                if (!_visibleCardsByProductId.TryGetValue(item.ProductId, out var card))
+                if (pageItems != null)
                 {
-                    continue;
-                }
+                    for (var i = 0; i < pageItems.Count; i++)
+                    {
+                        var item = pageItems[i];
+                        if (item == null)
+                        {
+                            continue;
+                        }
 
-                if (_productGridContainer.childCount <= i)
-                {
-                    _productGridContainer.Add(card);
-                }
-                else if (_productGridContainer[i] != card)
-                {
-                    card.RemoveFromHierarchy();
-                    _productGridContainer.Insert(i, card);
+                        var hasProductId = !string.IsNullOrWhiteSpace(item.ProductId);
+                        VisualElement card;
+                        if (hasProductId && _visibleCardsByProductId.TryGetValue(item.ProductId, out card))
+                        {
+                            BindCard(card, item);
+                            reused++;
+                        }
+                        else if (_cardPool.Count > 0)
+                        {
+                            card = _cardPool[_cardPool.Count - 1];
+                            _cardPool.RemoveAt(_cardPool.Count - 1);
+                            BindCard(card, item);
+                            LoadCardThumbnailAsync(card, item);
+                            fromPool++;
+                        }
+                        else
+                        {
+                            card = BuildCard(item);
+                            LoadCardThumbnailAsync(card, item);
+                            built++;
+                        }
+
+                        if (hasProductId)
+                        {
+                            _visibleCardsByProductId[item.ProductId] = card;
+                        }
+
+                        if (_productGridContainer.childCount <= i)
+                        {
+                            _productGridContainer.Add(card);
+                        }
+                        else if (_productGridContainer[i] != card)
+                        {
+                            if (card.parent == _productGridContainer)
+                            {
+                                card.RemoveFromHierarchy();
+                            }
+
+                            _productGridContainer.Insert(i, card);
+                        }
+                    }
+
+                    while (_productGridContainer.childCount > pageItems.Count)
+                    {
+                        var last = _productGridContainer[_productGridContainer.childCount - 1];
+                        last.RemoveFromHierarchy();
+                        if (_cardSlots.ContainsKey(last) && !_cardPool.Contains(last))
+                        {
+                            ResetCardForPool(last);
+                            _cardPool.Add(last);
+                        }
+                    }
                 }
             }
-
-            while (_productGridContainer.childCount > pageItems.Count)
+            finally
             {
-                _productGridContainer[_productGridContainer.childCount - 1].RemoveFromHierarchy();
+                if (detached)
+                {
+                    parent.Insert(siblingIndex, _productGridContainer);
+                }
             }
 
-            return true;
+            return (reused, fromPool, built);
         }
 
-        private void RebuildGridFromScratch(IReadOnlyList<BlmItemRecord> pageItems)
+        private void ResetCardForPool(VisualElement card)
         {
-            _productGridContainer.Clear();
-            _visibleCardsByProductId.Clear();
-            foreach (var item in pageItems)
+            if (card == null)
             {
-                var card = BuildCard(item);
-                BindCard(card, item);
-                _productGridContainer.Add(card);
-                if (!string.IsNullOrWhiteSpace(item.ProductId))
+                return;
+            }
+
+            card.userData = null;
+            card.RemoveFromClassList("blm-product-card-selected");
+            if (_cardSlots.TryGetValue(card, out var slots))
+            {
+                if (slots.ProductName != null)
                 {
-                    _visibleCardsByProductId[item.ProductId] = card;
+                    slots.ProductName.text = string.Empty;
                 }
 
-                LoadCardThumbnailAsync(card, item);
+                if (slots.ShopName != null)
+                {
+                    slots.ShopName.text = string.Empty;
+                }
+
+                if (slots.Thumb != null)
+                {
+                    slots.Thumb.style.backgroundImage = StyleKeyword.Null;
+                }
             }
         }
 
@@ -143,6 +212,35 @@ namespace com.amari_noa.blm_integration_core.editor
                 return;
             }
 
+            if (_thumbnailCacheService.TryGetMemoryCachedTexture(item, out var cachedTexture) && cachedTexture != null)
+            {
+                var thumb = GetCardThumb(card);
+                if (thumb != null)
+                {
+                    thumb.style.backgroundImage = new StyleBackground(cachedTexture);
+                }
+                return;
+            }
+
+            EditorApplication.delayCall += () =>
+            {
+                if (this == null || rootVisualElement?.panel == null)
+                {
+                    return;
+                }
+
+                if (!(card.userData is BlmItemRecord boundItem) ||
+                    !string.Equals(boundItem.ProductId, item.ProductId, StringComparison.Ordinal))
+                {
+                    return;
+                }
+
+                DispatchCardThumbnailFetch(card, item);
+            };
+        }
+
+        private void DispatchCardThumbnailFetch(VisualElement card, BlmItemRecord item)
+        {
             var cancellationToken = EnsureGridThumbnailCancellationToken();
             _ = _thumbnailCacheService.GetTextureAsync(item, cancellationToken).ContinueWith(task =>
             {
@@ -162,13 +260,18 @@ namespace com.amari_noa.blm_integration_core.editor
                         return;
                     }
 
-                    var thumb = card.Q<VisualElement>("Thumb");
+                    var thumb = GetCardThumb(card);
                     if (thumb != null)
                     {
                         thumb.style.backgroundImage = new StyleBackground(task.Result);
                     }
                 };
             });
+        }
+
+        private VisualElement GetCardThumb(VisualElement card)
+        {
+            return card == null ? null : GetOrCreateCardSlots(card).Thumb;
         }
 
         private VisualElement BuildCard(BlmItemRecord item)
@@ -184,6 +287,7 @@ namespace com.amari_noa.blm_integration_core.editor
             var sn = new Label { name = "ShopNameLabel" };
             sn.AddToClassList("blm-product-card-shop-name");
             card.Add(sn);
+            _cardSlots[card] = new CardSlots { Thumb = thumb, ProductName = pn, ShopName = sn };
             BindCard(card, item);
             card.RegisterCallback<ClickEvent>(_ =>
             {
@@ -212,17 +316,33 @@ namespace com.amari_noa.blm_integration_core.editor
                 card.RemoveFromClassList("blm-product-card-selected");
             }
 
-            var pn = card.Q<Label>("ProductNameLabel");
-            if (pn != null)
+            var slots = GetOrCreateCardSlots(card);
+            if (slots.ProductName != null)
             {
-                pn.text = item.ProductName;
+                slots.ProductName.text = item.ProductName;
             }
 
-            var sn = card.Q<Label>("ShopNameLabel");
-            if (sn != null)
+            if (slots.ShopName != null)
             {
-                sn.text = item.ShopName;
+                slots.ShopName.text = item.ShopName;
             }
+        }
+
+        private CardSlots GetOrCreateCardSlots(VisualElement card)
+        {
+            if (_cardSlots.TryGetValue(card, out var slots))
+            {
+                return slots;
+            }
+
+            slots = new CardSlots
+            {
+                Thumb = card.Q<VisualElement>("Thumb"),
+                ProductName = card.Q<Label>("ProductNameLabel"),
+                ShopName = card.Q<Label>("ShopNameLabel"),
+            };
+            _cardSlots[card] = slots;
+            return slots;
         }
 
         private void SelectDetailItem(BlmItemRecord item)

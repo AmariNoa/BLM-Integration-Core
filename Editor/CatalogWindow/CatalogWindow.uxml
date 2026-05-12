@@ -69,11 +69,15 @@
                 <ui:VisualElement style="flex-grow: 1; max-height: 5px; min-height: 5px;" />
                 <ui:Label tabindex="-1" text="Filtered product count" parse-escape-sequences="true" display-tooltip-when-elided="true" name="FilteredProductCountLabel" style="-unity-text-align: middle-center;" />
             </ui:VisualElement>
-            <ui:VisualElement name="CatalogPanel" style="flex-grow: 1; margin-top: 8px; margin-right: 8px; margin-bottom: 8px; margin-left: 8px; align-self: stretch;">
-                <ui:DropdownField label="Page size" name="PageSizeField" />
-                <ui:ScrollView name="ProductGridScrollView" style="flex-grow: 1; margin-top: 8px; margin-right: 8px; margin-bottom: 8px; margin-left: 8px;">
-                    <ui:VisualElement name="ProductGridContainer" style="flex-grow: 1; flex-direction: row; flex-wrap: wrap; align-items: flex-start; justify-content: center;" />
-                </ui:ScrollView>
+            <ui:VisualElement name="CatalogPanel" style="flex-grow: 1; flex-basis: 0; min-height: 0; margin-top: 8px; margin-right: 8px; margin-bottom: 8px; margin-left: 8px; align-self: stretch;">
+                <ui:VisualElement name="CatalogPanelHeader" style="flex-grow: 0; flex-shrink: 0;">
+                    <ui:DropdownField label="Page size" name="PageSizeField" />
+                </ui:VisualElement>
+                <ui:VisualElement name="ProductGridSection" style="flex-grow: 1; flex-shrink: 1; flex-basis: 0; min-height: 0;">
+                    <ui:ScrollView name="ProductGridScrollView" style="flex-grow: 1; flex-basis: 0; min-height: 0; margin-top: 8px; margin-right: 8px; margin-bottom: 8px; margin-left: 8px;">
+                        <ui:VisualElement name="ProductGridContainer" style="flex-grow: 1; flex-direction: row; flex-wrap: wrap; align-items: flex-start; justify-content: center;" />
+                    </ui:ScrollView>
+                </ui:VisualElement>
             </ui:VisualElement>
             <ui:VisualElement name="CatalogFooter" style="flex-grow: 0; max-height: 34px; min-height: 34px; flex-direction: row; align-items: center; align-self: stretch;">
                 <ui:VisualElement name="MinPageButtons" style="flex-grow: 1; flex-shrink: 1; flex-basis: 0; flex-direction: row-reverse; -unity-text-align: upper-center;">
@@ -153,6 +157,9 @@
                 <ui:Label tabindex="-1" text="Processing..." parse-escape-sequences="true" display-tooltip-when-elided="true" name="ImportProcessingTitleLabel" class="blm-import-now-loading-label" />
                 <ui:Label tabindex="-1" parse-escape-sequences="true" display-tooltip-when-elided="true" name="ImportProcessingStatusLabel" class="blm-import-now-loading-status-label" />
             </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="CatalogLoadingOverlay" class="blm-catalog-loading-overlay">
+            <ui:Label tabindex="-1" parse-escape-sequences="true" display-tooltip-when-elided="true" name="CatalogLoadingLabel" class="blm-catalog-loading-label" />
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

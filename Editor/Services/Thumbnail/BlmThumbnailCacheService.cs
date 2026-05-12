@@ -126,6 +126,33 @@ namespace com.amari_noa.blm_integration_core.editor
             }
         }
 
+        public bool TryGetMemoryCachedTexture(BlmItemRecord itemRecord, out Texture2D texture)
+        {
+            texture = null;
+            if (itemRecord == null)
+            {
+                return false;
+            }
+
+            var path = itemRecord.ThumbnailPath;
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return false;
+            }
+
+            lock (_syncRoot)
+            {
+                if (_memoryCache.TryGetValue(path, out var cached) && cached != null)
+                {
+                    TouchCache(path);
+                    texture = cached;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         public async Task<Texture2D> GetTextureAsync(BlmItemRecord itemRecord, CancellationToken cancellationToken = default)
         {
             if (itemRecord == null)
@@ -201,7 +228,7 @@ namespace com.amari_noa.blm_integration_core.editor
 
             var hash = ComputeSha256Hex(thumbnailUrl);
             var cachedPath = FindCachedFileByHash(hash);
-            if (!string.IsNullOrWhiteSpace(cachedPath) && File.Exists(cachedPath))
+            if (!string.IsNullOrWhiteSpace(cachedPath))
             {
                 if (!IsExpired(cachedPath))
                 {

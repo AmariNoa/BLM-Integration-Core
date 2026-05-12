@@ -109,6 +109,8 @@ namespace com.amari_noa.blm_integration_core.editor
         private Label _listModeEmptyStateLabel;
         private Button _cancelButton;
         private VisualElement _importNowLoadingOverlay;
+        private VisualElement _catalogLoadingOverlay;
+        private Label _catalogLoadingLabel;
         private Label _importProcessingTitleLabel;
         private Label _importProcessingStatusLabel;
 
@@ -162,6 +164,7 @@ namespace com.amari_noa.blm_integration_core.editor
         private int _detailThumbnailRequestVersion;
         private CancellationTokenSource _detailThumbnailLoadCancellationTokenSource;
         private CancellationTokenSource _gridThumbnailLoadCancellationTokenSource;
+        private string _lastShownDetailProductId = "";
         private bool _closeRequestedFromUnsavedChangesPrompt;
 
         public static CatalogWindow Open(BlmPickerContext context, Action<BlmImportBatchRequest> onConfirmed)
@@ -258,7 +261,7 @@ namespace com.amari_noa.blm_integration_core.editor
             }
 
             var instantiateStopwatch = System.Diagnostics.Stopwatch.StartNew();
-            rootVisualElement.Add(tree.Instantiate());
+            tree.CloneTree(rootVisualElement);
             instantiateStopwatch.Stop();
             PerfLog($"CreateGUI step='InstantiateUXML' elapsedMs={instantiateStopwatch.ElapsedMilliseconds}");
 
@@ -292,15 +295,23 @@ namespace com.amari_noa.blm_integration_core.editor
 
         private void ShowCatalogLoadingPlaceholder()
         {
-            if (_productGridContainer == null)
+            if (_catalogLoadingLabel != null)
             {
-                return;
+                _catalogLoadingLabel.text = L("blm.catalog.loading", "Loading...");
             }
 
-            _productGridContainer.Clear();
-            var loadingLabel = new Label(L("blm.catalog.loading", "Loading..."));
-            loadingLabel.AddToClassList("blm-catalog-loading-label");
-            _productGridContainer.Add(loadingLabel);
+            if (_catalogLoadingOverlay != null)
+            {
+                _catalogLoadingOverlay.style.display = DisplayStyle.Flex;
+            }
+        }
+
+        private void HideCatalogLoadingPlaceholder()
+        {
+            if (_catalogLoadingOverlay != null)
+            {
+                _catalogLoadingOverlay.style.display = DisplayStyle.None;
+            }
         }
 
         private void ExecuteInitialReloadDeferred()
@@ -311,9 +322,16 @@ namespace com.amari_noa.blm_integration_core.editor
             }
 
             var reloadStopwatch = System.Diagnostics.Stopwatch.StartNew();
-            ReloadDb(false);
-            reloadStopwatch.Stop();
-            PerfLog($"CreateGUI deferred-step='ReloadDb' elapsedMs={reloadStopwatch.ElapsedMilliseconds}");
+            try
+            {
+                ReloadDb(false);
+            }
+            finally
+            {
+                HideCatalogLoadingPlaceholder();
+                reloadStopwatch.Stop();
+                PerfLog($"CreateGUI deferred-step='ReloadDb' elapsedMs={reloadStopwatch.ElapsedMilliseconds}");
+            }
         }
 
         private void RefreshIfInitialized()
@@ -623,6 +641,8 @@ namespace com.amari_noa.blm_integration_core.editor
             _filteredProductCountLabel = rootVisualElement.Q<Label>("FilteredProductCountLabel");
             _listModeEmptyStateLabel = rootVisualElement.Q<Label>("ListModeEmptyStateLabel");
             _importNowLoadingOverlay = rootVisualElement.Q<VisualElement>("ImportNowLoadingOverlay");
+            _catalogLoadingOverlay = rootVisualElement.Q<VisualElement>("CatalogLoadingOverlay");
+            _catalogLoadingLabel = rootVisualElement.Q<Label>("CatalogLoadingLabel");
             _importProcessingTitleLabel = rootVisualElement.Q<Label>("ImportProcessingTitleLabel");
             _importProcessingStatusLabel = rootVisualElement.Q<Label>("ImportProcessingStatusLabel");
         }

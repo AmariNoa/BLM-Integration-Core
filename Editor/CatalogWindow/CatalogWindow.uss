@@ -356,10 +356,22 @@
     display: none;
 }
 
+.blm-catalog-loading-overlay {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(0, 0, 0, 0.38);
+}
+
+
 .blm-catalog-loading-label {
-    flex-grow: 1;
     -unity-text-align: middle-center;
     -unity-font-style: bold;
-    margin-top: 24px;
-    color: rgb(210, 210, 210);
+    font-size: 14px;
+    color: rgb(235, 235, 235);
 }

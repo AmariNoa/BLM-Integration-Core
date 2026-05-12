@@ -14,6 +14,7 @@ namespace com.amari_noa.blm_integration_core.editor
     {
         private void ShowDetail(BlmItemRecord item)
         {
+            _lastShownDetailProductId = item?.ProductId ?? string.Empty;
             if (item == null)
             {
                 _detailFileLoadVersion++;
