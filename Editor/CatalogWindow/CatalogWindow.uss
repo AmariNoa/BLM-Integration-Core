@@ -335,3 +335,18 @@
 #CurrentPageField .unity-text-element {
     -unity-text-align: middle-center;
 }
+
+#CurrentPageField .unity-base-field__label {
+    display: none;
+    min-width: 0;
+    width: 0;
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+#CurrentPageField {
+    margin-left: 0;
+    margin-right: 0;
+}
