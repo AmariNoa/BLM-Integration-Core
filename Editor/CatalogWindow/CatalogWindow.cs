@@ -184,9 +184,11 @@ namespace com.amari_noa.blm_integration_core.editor
             var hasOpenInstance = HasOpenInstances<CatalogWindow>();
             var window = GetWindow<CatalogWindow>(false, BlmConstants.WindowTitle, true);
             window.ApplyWindowSizeConstraints();
+            Rect? initialPlacement = null;
             if (!hasOpenInstance)
             {
-                window.position = new Rect(InitialWindowPosition, InitialWindowSize);
+                initialPlacement = LoadStoredWindowPlacement() ?? new Rect(InitialWindowPosition, InitialWindowSize);
+                window.position = initialPlacement.Value;
             }
 
             window._context = context;
@@ -194,6 +196,23 @@ namespace com.amari_noa.blm_integration_core.editor
             window.titleContent = new GUIContent(BlmConstants.WindowTitle);
             window.Show();
             window.Focus();
+            if (initialPlacement.HasValue)
+            {
+                var targetPlacement = initialPlacement.Value;
+                EditorApplication.delayCall += () =>
+                {
+                    if (window == null)
+                    {
+                        return;
+                    }
+
+                    if (window.position != targetPlacement)
+                    {
+                        window.position = targetPlacement;
+                    }
+                };
+            }
+
             if (hasOpenInstance)
             {
                 window.RefreshIfInitialized();
@@ -231,6 +250,58 @@ namespace com.amari_noa.blm_integration_core.editor
         {
             minSize = MinimumWindowSize;
             maxSize = MaximumWindowSize;
+        }
+
+        private static Rect? LoadStoredWindowPlacement()
+        {
+            if (!EditorPrefs.HasKey(BlmConstants.WindowPositionXEditorPrefsKey) ||
+                !EditorPrefs.HasKey(BlmConstants.WindowPositionYEditorPrefsKey) ||
+                !EditorPrefs.HasKey(BlmConstants.WindowSizeWidthEditorPrefsKey) ||
+                !EditorPrefs.HasKey(BlmConstants.WindowSizeHeightEditorPrefsKey))
+            {
+                return null;
+            }
+
+            var x = EditorPrefs.GetFloat(BlmConstants.WindowPositionXEditorPrefsKey);
+            var y = EditorPrefs.GetFloat(BlmConstants.WindowPositionYEditorPrefsKey);
+            var w = EditorPrefs.GetFloat(BlmConstants.WindowSizeWidthEditorPrefsKey);
+            var h = EditorPrefs.GetFloat(BlmConstants.WindowSizeHeightEditorPrefsKey);
+
+            if (float.IsNaN(x) || float.IsNaN(y) || float.IsNaN(w) || float.IsNaN(h) ||
+                float.IsInfinity(x) || float.IsInfinity(y) || float.IsInfinity(w) || float.IsInfinity(h))
+            {
+                return null;
+            }
+
+            if (w <= 0f || h <= 0f)
+            {
+                return null;
+            }
+
+            const float sanityRange = 50000f;
+            if (Mathf.Abs(x) > sanityRange || Mathf.Abs(y) > sanityRange ||
+                w > sanityRange || h > sanityRange)
+            {
+                return null;
+            }
+
+            return new Rect(x, y, w, h);
+        }
+
+        private void PersistWindowPlacement()
+        {
+            var rect = position;
+            if (float.IsNaN(rect.x) || float.IsNaN(rect.y) ||
+                float.IsNaN(rect.width) || float.IsNaN(rect.height) ||
+                rect.width <= 0f || rect.height <= 0f)
+            {
+                return;
+            }
+
+            EditorPrefs.SetFloat(BlmConstants.WindowPositionXEditorPrefsKey, rect.x);
+            EditorPrefs.SetFloat(BlmConstants.WindowPositionYEditorPrefsKey, rect.y);
+            EditorPrefs.SetFloat(BlmConstants.WindowSizeWidthEditorPrefsKey, rect.width);
+            EditorPrefs.SetFloat(BlmConstants.WindowSizeHeightEditorPrefsKey, rect.height);
         }
 
         public void CreateGUI()
@@ -393,6 +464,7 @@ namespace com.amari_noa.blm_integration_core.editor
 
             BlmImportIndexService.Shared.FlushPendingSaves();
             _importedStateCacheService.FlushPendingSaves();
+            PersistWindowPlacement();
             _closeRequestedFromUnsavedChangesPrompt = false;
         }
 

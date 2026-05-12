@@ -25,6 +25,10 @@ namespace com.amari_noa.blm_integration_core.editor
         internal const string SortOrderEditorPrefsKey = "com.amari-noa.blm-integration-core.sort-order";
         internal const string ShopFilterSortEditorPrefsKey = "com.amari-noa.blm-integration-core.shop-filter-sort";
         internal const string TagFilterSortEditorPrefsKey = "com.amari-noa.blm-integration-core.tag-filter-sort";
+        internal const string WindowPositionXEditorPrefsKey = "com.amari-noa.blm-integration-core.window-position-x";
+        internal const string WindowPositionYEditorPrefsKey = "com.amari-noa.blm-integration-core.window-position-y";
+        internal const string WindowSizeWidthEditorPrefsKey = "com.amari-noa.blm-integration-core.window-size-width";
+        internal const string WindowSizeHeightEditorPrefsKey = "com.amari-noa.blm-integration-core.window-size-height";
 
         internal static readonly int[] PageSizes = { 50, 100, 150 };
 
