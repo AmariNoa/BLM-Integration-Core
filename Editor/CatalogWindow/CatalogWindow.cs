@@ -161,6 +161,7 @@ namespace com.amari_noa.blm_integration_core.editor
         private bool _confirmExecutionScheduled;
         private int _detailThumbnailRequestVersion;
         private CancellationTokenSource _detailThumbnailLoadCancellationTokenSource;
+        private CancellationTokenSource _gridThumbnailLoadCancellationTokenSource;
         private bool _closeRequestedFromUnsavedChangesPrompt;
 
         public static CatalogWindow Open(BlmPickerContext context, Action<BlmImportBatchRequest> onConfirmed)
@@ -319,6 +320,7 @@ namespace com.amari_noa.blm_integration_core.editor
             _detailFilesLoadingProductId = string.Empty;
             CancelDetailFileLoadBackgroundWork(disposeSource: true);
             CancelDetailThumbnailLoad(disposeSource: true);
+            CancelGridThumbnailLoads(disposeSource: true);
             CancelActiveImportedStateTasks(disposeSource: true);
             ClearPausedBackgroundWorkStateForImport();
             StopImportedStateCheckLoop();
@@ -422,6 +424,49 @@ namespace com.amari_noa.blm_integration_core.editor
             }
         }
 
+        private void CancelGridThumbnailLoads(bool disposeSource)
+        {
+            var source = _gridThumbnailLoadCancellationTokenSource;
+            _gridThumbnailLoadCancellationTokenSource = null;
+            if (source == null)
+            {
+                return;
+            }
+
+            try
+            {
+                source.Cancel();
+            }
+            catch
+            {
+                // ignored
+            }
+
+            if (!disposeSource)
+            {
+                return;
+            }
+
+            try
+            {
+                source.Dispose();
+            }
+            catch
+            {
+                // ignored
+            }
+        }
+
+        private CancellationToken EnsureGridThumbnailCancellationToken()
+        {
+            if (_gridThumbnailLoadCancellationTokenSource == null)
+            {
+                _gridThumbnailLoadCancellationTokenSource = new CancellationTokenSource();
+            }
+
+            return _gridThumbnailLoadCancellationTokenSource.Token;
+        }
+
         private void CancelActiveImportedStateTasks(bool disposeSource)
         {
             var source = _activeImportedStateCancellationTokenSource;
@@ -476,6 +521,7 @@ namespace com.amari_noa.blm_integration_core.editor
                     {
                         if (this == null ||
                             cancellationToken.IsCancellationRequested ||
+                            rootVisualElement?.panel == null ||
                             requestVersion != _detailThumbnailRequestVersion ||
                             !ReferenceEquals(_detailThumbnailLoadCancellationTokenSource, cancellationSource) ||
                             _detailItem == null ||

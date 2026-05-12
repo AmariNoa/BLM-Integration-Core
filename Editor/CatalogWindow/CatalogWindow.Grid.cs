@@ -143,12 +143,20 @@ namespace com.amari_noa.blm_integration_core.editor
                 return;
             }
 
-            _ = _thumbnailCacheService.GetTextureAsync(item).ContinueWith(task =>
+            var cancellationToken = EnsureGridThumbnailCancellationToken();
+            _ = _thumbnailCacheService.GetTextureAsync(item, cancellationToken).ContinueWith(task =>
             {
-                if (!task.IsCompletedSuccessfully || task.Result == null) return;
+                if (cancellationToken.IsCancellationRequested || !task.IsCompletedSuccessfully || task.Result == null)
+                {
+                    return;
+                }
+
                 EditorApplication.delayCall += () =>
                 {
-                    if (!(card.userData is BlmItemRecord boundItem) ||
+                    if (this == null ||
+                        cancellationToken.IsCancellationRequested ||
+                        rootVisualElement?.panel == null ||
+                        !(card.userData is BlmItemRecord boundItem) ||
                         !string.Equals(boundItem.ProductId, item.ProductId, StringComparison.Ordinal))
                     {
                         return;

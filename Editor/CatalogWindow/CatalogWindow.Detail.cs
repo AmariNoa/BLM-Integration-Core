@@ -138,7 +138,7 @@ namespace com.amari_noa.blm_integration_core.editor
                 {
                     try
                     {
-                        if (this == null)
+                        if (this == null || rootVisualElement?.panel == null)
                         {
                             return;
                         }
@@ -249,7 +249,7 @@ namespace com.amari_noa.blm_integration_core.editor
             EditorApplication.delayCall += () =>
             {
                 _detailFileListRebuildScheduled = false;
-                if (this == null || _detailFileListView == null)
+                if (this == null || rootVisualElement?.panel == null || _detailFileListView == null)
                 {
                     return;
                 }
