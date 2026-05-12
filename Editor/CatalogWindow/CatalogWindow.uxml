@@ -95,8 +95,8 @@
             <ui:VisualElement style="flex-grow: 1; flex-direction: row; min-height: 0;">
                 <ui:VisualElement style="flex-grow: 1; min-height: 0; max-width: 50%; min-width: 50%; padding-top: 5px; padding-right: 5px; padding-bottom: 5px; padding-left: 5px;">
                     <ui:VisualElement style="flex-grow: 0; flex-shrink: 0; height: 110px; max-height: 110px; min-height: 110px; overflow: hidden;">
-                        <ui:Label tabindex="-1" text="" parse-escape-sequences="true" display-tooltip-when-elided="true" name="DetailProductNameLabel" style="height: 56px; max-height: 56px; min-height: 56px; white-space: normal; overflow: hidden; text-overflow: clip; -unity-text-align: upper-center;" />
-                        <ui:Label tabindex="-1" text="" parse-escape-sequences="true" display-tooltip-when-elided="true" name="DetailShopNameLabel" style="height: 30px; max-height: 30px; min-height: 30px; white-space: normal; overflow: hidden; text-overflow: clip; -unity-text-align: upper-center;" />
+                        <ui:Label tabindex="-1" parse-escape-sequences="true" display-tooltip-when-elided="true" name="DetailShopNameLabel" style="height: 30px; max-height: 30px; min-height: 30px; white-space: normal; overflow: hidden; text-overflow: clip; -unity-text-align: upper-center;" />
+                        <ui:Label tabindex="-1" parse-escape-sequences="true" display-tooltip-when-elided="true" name="DetailProductNameLabel" style="height: 56px; max-height: 56px; min-height: 56px; white-space: normal; overflow: hidden; text-overflow: clip; -unity-text-align: upper-center;" />
                     </ui:VisualElement>
                     <ui:VisualElement name="DetailThumbnailImage" style="flex-grow: 0; flex-shrink: 0; min-height: 120px; margin-top: 4px; margin-right: 4px; margin-bottom: 4px; margin-left: 4px;" />
                     <ui:VisualElement style="flex-grow: 1; max-height: 10px; min-height: 10px;" />
@@ -115,7 +115,7 @@
                         </ui:VisualElement>
                     </ui:VisualElement>
                     <ui:VisualElement style="flex-grow: 0; flex-shrink: 0; flex-direction: column-reverse; max-height: 170px; min-height: 170px;">
-                        <ui:Label tabindex="-1" text="" parse-escape-sequences="true" display-tooltip-when-elided="true" name="DetailFolderPathLabel" style="-unity-text-align: upper-left; max-height: 120px; min-height: 120px; white-space: normal;" />
+                        <ui:Label tabindex="-1" parse-escape-sequences="true" display-tooltip-when-elided="true" name="DetailFolderPathLabel" style="-unity-text-align: upper-left; max-height: 120px; min-height: 120px; white-space: normal; flex-wrap: wrap;" />
                         <ui:Button text="Open folder path" parse-escape-sequences="true" display-tooltip-when-elided="true" name="OpenFolderPathButton" />
                     </ui:VisualElement>
                 </ui:VisualElement>
