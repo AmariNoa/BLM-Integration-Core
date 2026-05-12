@@ -23,6 +23,18 @@ namespace com.amari_noa.blm_integration_core.editor
             BlmCatalogWindowGateway.Shared.Open(context);
         }
 
+        [MenuItem("BLM Integration Core/Clear hash cache")]
+        private static void ClearHashCache()
+        {
+            BlmUnityPackageGuidCache.Shared.ClearAll();
+            BlmImportedStateCacheService.Shared.ClearAll();
+
+            EditorUtility.DisplayDialog(
+                L("blm.hash_cache.cleanup_completed.title", "BLM Integration Core"),
+                L("blm.hash_cache.cleanup_completed.message", "Hash cache cleanup completed."),
+                "OK");
+        }
+
         [MenuItem("BLM Integration Core/Clear thumbnail cache")]
         private static void ClearThumbnailCache()
         {

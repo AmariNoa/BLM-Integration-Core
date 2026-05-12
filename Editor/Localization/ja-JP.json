@@ -153,6 +153,12 @@
         "title": "BLM Integration Core",
         "message": "サムネイルキャッシュのクリーンアップが完了しました。"
       }
+    },
+    "hash_cache": {
+      "cleanup_completed": {
+        "title": "BLM Integration Core",
+        "message": "ハッシュキャッシュのクリーンアップが完了しました。"
+      }
     }
   }
 }

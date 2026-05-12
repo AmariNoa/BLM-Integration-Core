@@ -153,6 +153,12 @@
         "title": "BLM Integration Core",
         "message": "Thumbnail cache cleanup completed."
       }
+    },
+    "hash_cache": {
+      "cleanup_completed": {
+        "title": "BLM Integration Core",
+        "message": "Hash cache cleanup completed."
+      }
     }
   }
 }

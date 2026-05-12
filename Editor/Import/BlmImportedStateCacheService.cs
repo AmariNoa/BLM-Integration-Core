@@ -75,6 +75,29 @@ namespace com.amari_noa.blm_integration_core.editor
             EditorApplication.quitting += FlushPendingSaves;
         }
 
+        public void ClearAll()
+        {
+            lock (_syncRoot)
+            {
+                _entriesByLookupKey.Clear();
+                _dirty = false;
+                _saveScheduled = false;
+                _loaded = true;
+
+                try
+                {
+                    if (File.Exists(_cachePath))
+                    {
+                        File.Delete(_cachePath);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning($"[BLM Integration Core] Failed to delete imported state cache file. path={_cachePath}, error={ex.Message}");
+                }
+            }
+        }
+
         public bool TryBuildEntry(
             string productId,
             string sourceFilePath,

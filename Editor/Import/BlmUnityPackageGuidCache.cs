@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using com.amari_noa.unitypackage_pipeline_core.editor;
@@ -101,6 +102,31 @@ namespace com.amari_noa.blm_integration_core.editor
             _cachePath = BuildCachePath();
             AssemblyReloadEvents.beforeAssemblyReload += FlushPendingSaves;
             EditorApplication.quitting += FlushPendingSaves;
+        }
+
+        public void ClearAll()
+        {
+            lock (_syncRoot)
+            {
+                _entries.Clear();
+                _lru.Clear();
+                _persistedRecords.Clear();
+                _dirty = false;
+                _saveScheduled = false;
+                _loaded = true;
+
+                try
+                {
+                    if (File.Exists(_cachePath))
+                    {
+                        File.Delete(_cachePath);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning($"[BLM Integration Core] Failed to delete unitypackage guid cache file. path={_cachePath}, error={ex.Message}");
+                }
+            }
         }
 
         public bool TryGetGuids(string sourcePath, out IReadOnlyList<string> guids)
