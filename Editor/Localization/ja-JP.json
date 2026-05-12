@@ -2,7 +2,7 @@
   "languageDisplayName": "日本語",
   "blm": {
     "window": {
-      "title": "BLM Integration Core"
+      "title": "BLM CatalogWindow"
     },
     "display_mode": {
       "all": "購入済み全件",
@@ -162,7 +162,7 @@
       }
     },
     "menu": {
-      "window": "BLMウィンドウ",
+      "window": "BLM CatalogWindow",
       "clear_thumbnail_cache": "サムネイルキャッシュを削除"
     },
     "error": {

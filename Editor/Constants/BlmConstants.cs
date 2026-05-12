@@ -15,7 +15,7 @@ namespace com.amari_noa.blm_integration_core.editor
         internal const string PerformanceLogPrefix = "[BLM Perf]";
         internal static readonly bool EnablePerformanceLogging = false;
 
-        internal const string WindowTitle = "BLM Window";
+        internal const string WindowTitle = "BLM CatalogWindow";
         internal const string ThumbnailCacheEditorPrefsKey = "com.amari-noa.blm-integration-core.thumbnail-cache-max-entries";
         internal const string PageSizeEditorPrefsKey = "com.amari-noa.blm-integration-core.page-size";
         internal const string SortKeyEditorPrefsKey = "com.amari-noa.blm-integration-core.sort-key";

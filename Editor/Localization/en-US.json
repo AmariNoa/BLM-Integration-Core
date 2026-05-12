@@ -2,7 +2,7 @@
   "languageDisplayName": "English",
   "blm": {
     "window": {
-      "title": "BLM Integration Core"
+      "title": "BLM CatalogWindow"
     },
     "display_mode": {
       "all": "All Purchased",
@@ -162,7 +162,7 @@
       }
     },
     "menu": {
-      "window": "BLM Window",
+      "window": "BLM CatalogWindow",
       "clear_thumbnail_cache": "Clear thumbnail cache"
     },
     "error": {

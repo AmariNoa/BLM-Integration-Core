@@ -7,7 +7,7 @@ namespace com.amari_noa.blm_integration_core.editor
 {
     internal static class BlmMenu
     {
-        [MenuItem("Tools/BLM Integration Core/BLM Window")]
+        [MenuItem("BLM Integration Core/BLM CatalogWindow")]
         private static void OpenStandaloneWindow()
         {
             var context = new BlmPickerContext
@@ -23,7 +23,7 @@ namespace com.amari_noa.blm_integration_core.editor
             BlmCatalogWindowGateway.Shared.Open(context);
         }
 
-        [MenuItem("Tools/BLM Integration Core/Clear thumbnail cache")]
+        [MenuItem("BLM Integration Core/Clear thumbnail cache")]
         private static void ClearThumbnailCache()
         {
             if (CatalogWindow.IsWindowOpen())
