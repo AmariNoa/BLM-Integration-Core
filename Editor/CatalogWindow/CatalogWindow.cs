@@ -522,6 +522,7 @@ namespace com.amari_noa.blm_integration_core.editor
             _tagListView = rootVisualElement.Q<ListView>("TagFilterListView");
             _detailFileListView = rootVisualElement.Q<ListView>("DetailFileListView");
             _importQueueListView = rootVisualElement.Q<ListView>("ImportQueueListView");
+            _importQueueListView?.RegisterCallback<GeometryChangedEvent>(_ => ApplyImportQueueEmptyLabelText());
             _selectedItemsFilterDropDownField = rootVisualElement.Q<DropdownField>("SelectedItemsFilterDropdown");
             _productGridContainer = rootVisualElement.Q<VisualElement>("ProductGridContainer");
             _detailThumbnailImage = rootVisualElement.Q<VisualElement>("DetailThumbnailImage");
@@ -2360,6 +2361,7 @@ namespace com.amari_noa.blm_integration_core.editor
             if (forceRebuild)
             {
                 _importQueueListView.Rebuild();
+                ApplyImportQueueEmptyLabelText();
                 return;
             }
 
@@ -2371,6 +2373,8 @@ namespace com.amari_noa.blm_integration_core.editor
             {
                 _importQueueListView.Rebuild();
             }
+
+            ApplyImportQueueEmptyLabelText();
         }
 
         private void StartImportedStateEvaluation(BlmItemRecord item, IReadOnlyList<BlmFileRecord> files)
@@ -3484,6 +3488,7 @@ namespace com.amari_noa.blm_integration_core.editor
 
             _detailProductListLabel.text = L("blm.detail.product_files", "Product file(s)");
             _listModeEmptyStateLabel.text = L("blm.list.empty", "No list is available.");
+            ApplyImportQueueEmptyLabelText();
             if (_detailItem != null)
             {
                 StartImportedStateEvaluation(_detailItem, _detailFiles);
@@ -3502,6 +3507,23 @@ namespace com.amari_noa.blm_integration_core.editor
             }
 
             UpdateStandaloneImportUiState();
+        }
+
+        private void ApplyImportQueueEmptyLabelText()
+        {
+            if (_importQueueListView == null)
+            {
+                return;
+            }
+
+            var emptyLabel = _importQueueListView.Q<Label>(className: "unity-list-view__empty-label")
+                ?? _importQueueListView.Q<Label>(className: "unity-collection-view__empty-label");
+            if (emptyLabel == null)
+            {
+                return;
+            }
+
+            emptyLabel.text = L("blm.import_queue.empty", "Import queue is empty.");
         }
 
         private void OnLanguageChanged(string _)

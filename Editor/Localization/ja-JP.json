@@ -82,7 +82,8 @@
       }
     },
     "import_queue": {
-      "title": "インポートキュー"
+      "title": "インポートキュー",
+      "empty": "インポートキューは空です。"
     },
     "button": {
       "clear": "クリア",

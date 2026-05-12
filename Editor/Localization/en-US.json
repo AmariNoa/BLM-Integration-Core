@@ -82,7 +82,8 @@
       }
     },
     "import_queue": {
-      "title": "Import Queue"
+      "title": "Import Queue",
+      "empty": "Import queue is empty."
     },
     "button": {
       "clear": "Clear",
