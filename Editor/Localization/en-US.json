@@ -47,6 +47,9 @@
       "label": "Search"
     },
     "page_size": "Page size",
+    "catalog": {
+      "loading": "Loading..."
+    },
     "detail": {
       "product_files": "Product file(s)",
       "imported_state": {

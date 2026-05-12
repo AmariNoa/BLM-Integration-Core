@@ -282,13 +282,38 @@ namespace com.amari_noa.blm_integration_core.editor
             localizationStopwatch.Stop();
             PerfLog($"CreateGUI step='ApplyLocalization' elapsedMs={localizationStopwatch.ElapsedMilliseconds}");
 
-            var reloadStopwatch = System.Diagnostics.Stopwatch.StartNew();
-            ReloadDb(false);
-            reloadStopwatch.Stop();
-            PerfLog($"CreateGUI step='ReloadDb' elapsedMs={reloadStopwatch.ElapsedMilliseconds}");
+            ShowCatalogLoadingPlaceholder();
+            EditorApplication.delayCall += ExecuteInitialReloadDeferred;
+            PerfLog("CreateGUI step='ReloadDb' deferred=true");
 
             totalStopwatch.Stop();
             PerfLog($"CreateGUI completed in {totalStopwatch.ElapsedMilliseconds} ms");
+        }
+
+        private void ShowCatalogLoadingPlaceholder()
+        {
+            if (_productGridContainer == null)
+            {
+                return;
+            }
+
+            _productGridContainer.Clear();
+            var loadingLabel = new Label(L("blm.catalog.loading", "Loading..."));
+            loadingLabel.AddToClassList("blm-catalog-loading-label");
+            _productGridContainer.Add(loadingLabel);
+        }
+
+        private void ExecuteInitialReloadDeferred()
+        {
+            if (this == null || rootVisualElement?.panel == null)
+            {
+                return;
+            }
+
+            var reloadStopwatch = System.Diagnostics.Stopwatch.StartNew();
+            ReloadDb(false);
+            reloadStopwatch.Stop();
+            PerfLog($"CreateGUI deferred-step='ReloadDb' elapsedMs={reloadStopwatch.ElapsedMilliseconds}");
         }
 
         private void RefreshIfInitialized()
@@ -312,6 +337,7 @@ namespace com.amari_noa.blm_integration_core.editor
                     ? "OnDisable(CloseConfirmed)"
                     : "OnDisable");
             _confirmExecutionScheduled = false;
+            EditorApplication.delayCall -= ExecuteInitialReloadDeferred;
             ClearQueuedRuntimeImportQueueUiUpdate();
             CancelImportStartImportedStateCheck();
             SetImportQuietMode(false);

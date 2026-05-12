@@ -355,3 +355,11 @@
 #DetailFileListView .unity-collection-view__empty-label {
     display: none;
 }
+
+.blm-catalog-loading-label {
+    flex-grow: 1;
+    -unity-text-align: middle-center;
+    -unity-font-style: bold;
+    margin-top: 24px;
+    color: rgb(210, 210, 210);
+}
