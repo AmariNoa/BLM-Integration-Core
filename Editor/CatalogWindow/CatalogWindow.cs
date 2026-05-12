@@ -1488,12 +1488,36 @@ namespace com.amari_noa.blm_integration_core.editor
             });
             PerfLog(
                 "ReloadDb filter caches invalidated.");
+            RefreshDetailItemFromReloadedDb();
             ApplyFilter(true);
             rebuildUiStopwatch.Stop();
             totalStopwatch.Stop();
             PerfLog(
                 $"ReloadDb completed in {totalStopwatch.ElapsedMilliseconds} ms. " +
                 $"uiRefreshElapsedMs={rebuildUiStopwatch.ElapsedMilliseconds}, itemCount={_db.Items.Count}, listCount={_db.Lists.Count}, hasError={_db.HasError.ToString().ToLowerInvariant()}");
+        }
+
+        private void RefreshDetailItemFromReloadedDb()
+        {
+            if (_detailItem == null)
+            {
+                _lastShownDetailProductId = string.Empty;
+                return;
+            }
+
+            var productId = _detailItem.ProductId;
+            if (!string.IsNullOrWhiteSpace(productId) &&
+                _dbItemsByProductId.TryGetValue(productId, out var refreshedItem) &&
+                refreshedItem != null)
+            {
+                _detailItem = refreshedItem;
+            }
+            else
+            {
+                _detailItem = null;
+            }
+
+            _lastShownDetailProductId = string.Empty;
         }
 
         private void RebuildDbItemLookup()
