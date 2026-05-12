@@ -29,8 +29,8 @@ namespace com.amari_noa.blm_integration_core.editor
             if (CatalogWindow.IsWindowOpen())
             {
                 EditorUtility.DisplayDialog(
-                    L("blm.thumbnail_cache.window_open.title", "BLM Window Is Open"),
-                    L("blm.thumbnail_cache.window_open.message", "Close the BLM Window before clearing thumbnail cache."),
+                    L("blm.thumbnail_cache.window_open.title", "BLM Integration Core"),
+                    L("blm.thumbnail_cache.window_open.message", "Close the BLM CatalogWindow before clearing thumbnail cache."),
                     "OK");
                 return;
             }

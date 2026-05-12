@@ -126,11 +126,11 @@
         "message": "このファイルを上書きしますか？"
       },
       "completed": {
-        "title": "BLMウィンドウ",
+        "title": "BLM Integration Core",
         "message": "インポートが完了しました。"
       },
       "cancelled": {
-        "title": "BLMウィンドウ",
+        "title": "BLM Integration Core",
         "message": "インポートをキャンセルしました。",
         "with_package": "インポートをキャンセルしました: {0}",
         "by_window_close": "UnityPackageのインポートウィンドウを閉じたため、インポートをキャンセルしました。",
@@ -143,7 +143,7 @@
         "by_stale_recovery_with_path": "パイプラインの不整合状態を回復するため、インポートをキャンセルしました: {0}"
       },
       "failed": {
-        "title": "BLMウィンドウ",
+        "title": "BLM Integration Core",
         "message": "インポートに失敗しました。",
         "with_package": "インポートに失敗しました: {0}",
         "by_window_types_unresolved": "Package Import ウィンドウを解決できなかったため、インタラクティブなインポートを開始できませんでした。",
@@ -153,8 +153,8 @@
     "thumbnail_cache": {
       "max_entries_label": "サムネイルキャッシュ上限",
       "window_open": {
-        "title": "BLMウィンドウを開いています",
-        "message": "サムネイルキャッシュを削除する前に BLM ウィンドウを閉じてください。"
+        "title": "BLM Integration Core",
+        "message": "サムネイルキャッシュを削除する前に BLM CatalogWindow を閉じてください。"
       },
       "cleanup_completed": {
         "title": "BLM Integration Core",

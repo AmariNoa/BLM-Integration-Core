@@ -126,11 +126,11 @@
         "message": "Overwrite this file?"
       },
       "completed": {
-        "title": "BLM Window",
+        "title": "BLM Integration Core",
         "message": "Import completed."
       },
       "cancelled": {
-        "title": "BLM Window",
+        "title": "BLM Integration Core",
         "message": "Import cancelled.",
         "with_package": "Import cancelled: {0}",
         "by_window_close": "Package import was cancelled by closing the import window.",
@@ -143,7 +143,7 @@
         "by_stale_recovery_with_path": "Import was cancelled while recovering inconsistent pipeline state: {0}"
       },
       "failed": {
-        "title": "BLM Window",
+        "title": "BLM Integration Core",
         "message": "Import failed.",
         "with_package": "Import failed: {0}",
         "by_window_types_unresolved": "Failed to start interactive package import (package import window could not be resolved).",
@@ -153,8 +153,8 @@
     "thumbnail_cache": {
       "max_entries_label": "Thumbnail cache max",
       "window_open": {
-        "title": "BLM Window Is Open",
-        "message": "Close the BLM Window before clearing thumbnail cache."
+        "title": "BLM Integration Core",
+        "message": "Close the BLM CatalogWindow before clearing thumbnail cache."
       },
       "cleanup_completed": {
         "title": "BLM Integration Core",

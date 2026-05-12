@@ -1612,7 +1612,7 @@ namespace com.amari_noa.blm_integration_core.editor
             if (result.ImportStatus == AmariUnityPackagePipelineOperationStatus.Completed)
             {
                 EditorUtility.DisplayDialog(
-                    L("blm.import.completed.title", "BLM Window"),
+                    L("blm.import.completed.title", "BLM Integration Core"),
                     L("blm.import.completed.message", "Import completed."),
                     "OK");
                 return;
@@ -1622,14 +1622,14 @@ namespace com.amari_noa.blm_integration_core.editor
             {
                 var cancelledMessage = BuildLocalizedCancelledMessage(result);
                 EditorUtility.DisplayDialog(
-                    L("blm.import.cancelled.title", "BLM Window"),
+                    L("blm.import.cancelled.title", "BLM Integration Core"),
                     cancelledMessage,
                     "OK");
                 return;
             }
 
             EditorUtility.DisplayDialog(
-                L("blm.import.failed.title", "BLM Window"),
+                L("blm.import.failed.title", "BLM Integration Core"),
                 BuildLocalizedFailedMessage(result),
                 "OK");
         }
