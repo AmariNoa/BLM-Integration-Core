@@ -95,10 +95,10 @@
                 </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
-        <ui:VisualElement name="RightPanel" style="flex-grow: 1; max-width: 30%; min-width: 30%; padding-top: 8px; padding-right: 8px; padding-bottom: 8px; padding-left: 8px;">
+        <ui:VisualElement name="RightPanel" style="flex-grow: 1; max-width: 30%; min-width: 30%; padding-top: 8px; padding-right: 8px; padding-bottom: 8px; padding-left: 8px; background-color: rgb(38, 38, 38);">
             <ui:VisualElement style="flex-grow: 1; flex-direction: row; min-height: 0;">
-                <ui:VisualElement style="flex-grow: 1; min-height: 0; max-width: 50%; min-width: 50%; padding-top: 5px; padding-right: 5px; padding-bottom: 5px; padding-left: 5px;">
-                    <ui:VisualElement style="flex-grow: 0; flex-shrink: 0; height: 110px; max-height: 110px; min-height: 110px; overflow: hidden;">
+                <ui:VisualElement style="flex-grow: 1; min-height: 0; max-width: 50%; min-width: 50%; padding-top: 5px; padding-right: 5px; padding-bottom: 5px; padding-left: 5px; background-color: rgb(48, 48, 48);">
+                    <ui:VisualElement style="flex-grow: 0; flex-shrink: 0; height: 110px; max-height: 110px; min-height: 110px; overflow: hidden; background-color: rgb(56, 56, 56);">
                         <ui:Label tabindex="-1" parse-escape-sequences="true" display-tooltip-when-elided="true" name="DetailShopNameLabel" style="height: 30px; max-height: 30px; min-height: 30px; white-space: normal; overflow: hidden; text-overflow: clip; -unity-text-align: middle-center;" />
                         <ui:VisualElement style="flex-shrink: 0; height: 56px; max-height: 56px; min-height: 56px; overflow: hidden; justify-content: center;">
                             <ui:Label tabindex="-1" parse-escape-sequences="true" display-tooltip-when-elided="true" name="DetailProductNameLabel" style="max-height: 56px; white-space: normal; overflow: hidden; -unity-text-align: upper-center;" />
@@ -110,7 +110,8 @@
                     <ui:VisualElement style="flex-grow: 1; max-height: 10px; min-height: 10px;" />
                     <ui:VisualElement style="flex-grow: 1; flex-shrink: 1; min-height: 0;">
                         <ui:Label tabindex="-1" text="Product file(s)" parse-escape-sequences="true" display-tooltip-when-elided="true" name="DetailProductListLabel" style="-unity-text-align: middle-center;" />
-                        <ui:ListView name="DetailFileListView" style="flex-grow: 1; flex-shrink: 1; min-height: 0;" />
+                        <ui:VisualElement style="flex-grow: 1; height: 5px; max-height: 5px; min-height: 5px;" />
+                        <ui:ListView name="DetailFileListView" style="flex-grow: 1; flex-shrink: 1; min-height: 0; background-color: rgb(56, 56, 56);" />
                         <ui:VisualElement style="flex-grow: 0; flex-shrink: 0; flex-direction: row;">
                             <ui:VisualElement style="flex-grow: 1;">
                                 <ui:Button text="DeSelect all file(s)" parse-escape-sequences="true" display-tooltip-when-elided="true" name="DeSelectAllFilesButton" />
@@ -131,13 +132,13 @@
                         <ui:Label tabindex="-1" text="Selected Items" parse-escape-sequences="true" display-tooltip-when-elided="true" name="SelectedItemsTitleLabel" style="-unity-text-align: middle-center;" />
                         <ui:DropdownField name="SelectedItemsFilterDropdown" />
                         <ui:VisualElement style="flex-grow: 1; min-height: 0;">
-                            <ui:ScrollView name="SelectedProductsScrollView" style="flex-grow: 1;" />
+                            <ui:ScrollView name="SelectedProductsScrollView" style="flex-grow: 1; background-color: rgb(56, 56, 56);" />
                             <ui:Button text="DeSelect all file(s)" parse-escape-sequences="true" display-tooltip-when-elided="true" name="DeSelectAllProductsFilesButton" />
                         </ui:VisualElement>
                         <ui:VisualElement style="flex-grow: 1; max-height: 10px; min-height: 10px;" />
                         <ui:VisualElement style="flex-grow: 1; max-height: 25%; min-height: 25%;">
                             <ui:Label tabindex="-1" text="ImportQueue" parse-escape-sequences="true" display-tooltip-when-elided="true" name="ImportQueueTitleLabel" style="-unity-text-align: middle-center;" />
-                            <ui:ListView name="ImportQueueListView" style="flex-grow: 1;" />
+                            <ui:ListView name="ImportQueueListView" style="flex-grow: 1; background-color: rgb(56, 56, 56);" />
                         </ui:VisualElement>
                     </ui:VisualElement>
                 </ui:VisualElement>
