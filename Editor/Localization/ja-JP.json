@@ -22,7 +22,6 @@
     },
     "filter": {
       "category": "カテゴリフィルター",
-      "subcategory": "サブカテゴリフィルター",
       "age": {
         "label": "年齢制限フィルター",
         "any": "指定なし",
@@ -34,10 +33,8 @@
         "name_asc": "名前順",
         "count_desc": "件数が多い順"
       },
-      "shop_search_placeholder": "ショップを検索...",
       "shop_clear": "選択したショップをクリア",
       "tag": "タグフィルター",
-      "tag_search_placeholder": "タグを検索...",
       "tag_clear": "選択したタグをクリア",
       "applied_count": "{0} 件のフィルターを適用中",
       "filtered_product_count": "表示対象 {0} 件"
@@ -47,13 +44,10 @@
       "label": "言語"
     },
     "search": {
-      "label": "検索",
-      "placeholder": ""
+      "label": "検索"
     },
     "page_size": "ページサイズ",
     "detail": {
-      "product_name": "商品名",
-      "shop_name": "ショップ名",
       "product_files": "商品ファイル",
       "imported_state": {
         "checking": "インポートファイルチェック中 ({0}/{1})",
@@ -65,8 +59,6 @@
           "partial": "一部インポート済み"
         }
       },
-      "imported_marker_prefix": "[@] ",
-      "folder_path": "フォルダーパス",
       "open_folder_path": "フォルダーを開く",
       "other_files": "その他ファイル",
       "deselect_all_files": "すべて選択解除",
@@ -90,7 +82,6 @@
       "cancel": "キャンセル",
       "import": "インポート"
     },
-    "loading": "読み込み中...",
     "processing": {
       "title": "処理中...",
       "status": {
@@ -107,7 +98,6 @@
       "skip": "スキップ"
     },
     "import": {
-      "now_loading": "Now Loading...",
       "close_during_queue": {
         "message": "インポートキューを実行中です。ウィンドウを閉じるとキューを中断します。閉じますか？"
       },
@@ -160,14 +150,6 @@
         "title": "BLM Integration Core",
         "message": "サムネイルキャッシュのクリーンアップが完了しました。"
       }
-    },
-    "menu": {
-      "window": "BLM CatalogWindow",
-      "clear_thumbnail_cache": "サムネイルキャッシュを削除"
-    },
-    "error": {
-      "db_load_failed": "BLMデータベースの読み込みに失敗しました。",
-      "context_invalid": "必須のピッカーコンテキストサービスが不足しています。"
     }
   }
 }
