@@ -44,15 +44,15 @@ namespace com.amari_noa.blm_integration_core.editor
                 if (baseFontAsset != null)
                 {
                     var fallbackAssets = new List<FontAsset>();
-                    var emojiFontFile = LoadAssetByGuid<Font>(BlmConstants.CatalogWindowEmojiFontFileGuid);
-                    if (emojiFontFile != null)
-                    {
-                        var emojiFontAsset = FontAsset.CreateFontAsset(emojiFontFile);
-                        if (emojiFontAsset != null)
-                        {
-                            fallbackAssets.Add(emojiFontAsset);
-                        }
-                    }
+                    AppendFallbackFontAsset(fallbackAssets, BlmConstants.CatalogWindowMathFontFileGuid);
+                    AppendFallbackFontAsset(fallbackAssets, BlmConstants.CatalogWindowSymbols2FontFileGuid);
+#if UNITY_2023_2_OR_NEWER
+                    AppendFallbackFontAsset(fallbackAssets, BlmConstants.CatalogWindowEmojiFontFileGuid);
+                    AppendFallbackFontAsset(fallbackAssets, BlmConstants.CatalogWindowMonoEmojiFontFileGuid);
+#else
+                    AppendFallbackFontAsset(fallbackAssets, BlmConstants.CatalogWindowMonoEmojiFontFileGuid);
+                    AppendFallbackFontAsset(fallbackAssets, BlmConstants.CatalogWindowEmojiFontFileGuid);
+#endif
 
                     baseFontAsset.fallbackFontAssetTable = fallbackAssets;
                     _catalogWindowFontAsset = baseFontAsset;
@@ -62,6 +62,28 @@ namespace com.amari_noa.blm_integration_core.editor
 
             _catalogWindowFontAsset = LoadAssetByGuid<FontAsset>(BlmConstants.CatalogWindowFontAssetGuid);
             return _catalogWindowFontAsset;
+        }
+
+        private static void AppendFallbackFontAsset(List<FontAsset> fallbackAssets, string fontFileGuid)
+        {
+            if (fallbackAssets == null)
+            {
+                return;
+            }
+
+            var fontFile = LoadAssetByGuid<Font>(fontFileGuid);
+            if (fontFile == null)
+            {
+                return;
+            }
+
+            var fontAsset = FontAsset.CreateFontAsset(fontFile);
+            if (fontAsset == null)
+            {
+                return;
+            }
+
+            fallbackAssets.Add(fontAsset);
         }
 
         private static T LoadAssetByGuid<T>(string guid) where T : UnityEngine.Object

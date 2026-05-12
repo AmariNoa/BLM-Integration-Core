@@ -12,6 +12,9 @@ namespace com.amari_noa.blm_integration_core.editor
         internal const string CatalogWindowFontAssetGuid = "a9b3494c5d20e964381fd5b2559dca9f";
         internal const string CatalogWindowFontFileGuid = "0482f662366228542b7c537a82068dc5";
         internal const string CatalogWindowEmojiFontFileGuid = "aa38dfc743b0d82428e138f1a9f7d3cf";
+        internal const string CatalogWindowMonoEmojiFontFileGuid = "6387c59102785a242bf79bb28a5b9795";
+        internal const string CatalogWindowMathFontFileGuid = "e350daa016ea38f408d20e4f026cb80d";
+        internal const string CatalogWindowSymbols2FontFileGuid = "92a826778b2c4804499a510c59fb79d6";
         internal const string PerformanceLogPrefix = "[BLM Perf]";
         internal static readonly bool EnablePerformanceLogging = false;
 
