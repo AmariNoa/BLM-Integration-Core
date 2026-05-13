@@ -48,7 +48,8 @@
     },
     "page_size": "Page size",
     "catalog": {
-      "loading": "Loading..."
+      "loading": "Loading...",
+      "integration_notice": "Opened by {0}"
     },
     "detail": {
       "product_files": "Product file(s)",

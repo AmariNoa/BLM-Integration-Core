@@ -56,6 +56,9 @@
             </ui:VisualElement>
         </ui:VisualElement>
         <ui:VisualElement name="MainPanel" style="flex-grow: 1; padding-top: 8px; padding-right: 8px; padding-bottom: 8px; padding-left: 8px;">
+            <ui:VisualElement name="IntegrationNoticeTextRoot" style="flex-grow: 1; max-height: 40px; min-height: 40px;">
+                <ui:Label tabindex="-1" text="Opened by other package" parse-escape-sequences="true" display-tooltip-when-elided="true" name="IntegrationNoticeText" style="-unity-text-align: middle-center; background-color: rgb(0, 8, 63);" />
+            </ui:VisualElement>
             <ui:VisualElement name="CatalogHeader" style="flex-grow: 1; max-height: 120px; min-height: 120px;">
                 <ui:VisualElement style="flex-grow: 1; max-height: 46px; min-height: 46px; justify-content: center; flex-direction: row;">
                     <ui:VisualElement style="flex-grow: 1;">

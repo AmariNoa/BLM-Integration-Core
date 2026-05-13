@@ -13,6 +13,7 @@ namespace com.amari_noa.blm_integration_core.editor
         public IEditorLocalizationService EditorLocalizationService;
         public string LocalizationSourceId = BlmConstants.LocalizationSourceId;
         public object HostContext;
+        public string HostDisplayName = string.Empty;
 
         public bool ValidateRequiredServices(out string errorMessage)
         {

@@ -61,6 +61,7 @@ namespace com.amari_noa.blm_integration_core.editor
 
         private BlmPickerContext _context;
         private Action<BlmImportBatchRequest> _onConfirmed;
+        private Action _onClosed;
         private BlmDatabaseLoadResult _db = new BlmDatabaseLoadResult();
 
         private DropdownField _displayModeField;
@@ -110,6 +111,8 @@ namespace com.amari_noa.blm_integration_core.editor
         private Button _cancelButton;
         private VisualElement _importNowLoadingOverlay;
         private VisualElement _catalogLoadingOverlay;
+        private VisualElement _integrationNoticeTextRoot;
+        private Label _integrationNoticeText;
         private Label _catalogLoadingLabel;
         private Label _importProcessingTitleLabel;
         private Label _importProcessingStatusLabel;
@@ -167,7 +170,7 @@ namespace com.amari_noa.blm_integration_core.editor
         private string _lastShownDetailProductId = "";
         private bool _closeRequestedFromUnsavedChangesPrompt;
 
-        public static CatalogWindow Open(BlmPickerContext context, Action<BlmImportBatchRequest> onConfirmed)
+        public static CatalogWindow Open(BlmPickerContext context, Action<BlmImportBatchRequest> onConfirmed, Action onClosed = null)
         {
             if (context == null)
             {
@@ -193,9 +196,11 @@ namespace com.amari_noa.blm_integration_core.editor
 
             window._context = context;
             window._onConfirmed = onConfirmed;
+            window._onClosed = onClosed;
             window.titleContent = new GUIContent(BlmConstants.WindowTitle);
             window.Show();
             window.Focus();
+            window.ApplyIntegrationNoticeText();
             if (initialPlacement.HasValue)
             {
                 var targetPlacement = initialPlacement.Value;
@@ -475,6 +480,19 @@ namespace com.amari_noa.blm_integration_core.editor
                     ? "OnDestroy(CloseConfirmed)"
                     : "OnDestroy");
             _closeRequestedFromUnsavedChangesPrompt = false;
+
+            try
+            {
+                _onClosed?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[BLM Integration Core] CatalogWindow.OnClosed callback failed: {ex.Message}");
+            }
+            finally
+            {
+                _onClosed = null;
+            }
         }
 
         private void CancelDetailFileLoadBackgroundWork(bool disposeSource)
@@ -714,6 +732,8 @@ namespace com.amari_noa.blm_integration_core.editor
             _listModeEmptyStateLabel = rootVisualElement.Q<Label>("ListModeEmptyStateLabel");
             _importNowLoadingOverlay = rootVisualElement.Q<VisualElement>("ImportNowLoadingOverlay");
             _catalogLoadingOverlay = rootVisualElement.Q<VisualElement>("CatalogLoadingOverlay");
+            _integrationNoticeTextRoot = rootVisualElement.Q<VisualElement>("IntegrationNoticeTextRoot");
+            _integrationNoticeText = rootVisualElement.Q<Label>("IntegrationNoticeText");
             _catalogLoadingLabel = rootVisualElement.Q<Label>("CatalogLoadingLabel");
             _importProcessingTitleLabel = rootVisualElement.Q<Label>("ImportProcessingTitleLabel");
             _importProcessingStatusLabel = rootVisualElement.Q<Label>("ImportProcessingStatusLabel");
@@ -3695,6 +3715,28 @@ namespace com.amari_noa.blm_integration_core.editor
             }
 
             UpdateStandaloneImportUiState();
+            ApplyIntegrationNoticeText();
+        }
+
+        private void ApplyIntegrationNoticeText()
+        {
+            if (_integrationNoticeTextRoot == null)
+            {
+                return;
+            }
+
+            var isIntegration = _context != null &&
+                                _context.InvocationContext == BlmInvocationContext.Integration &&
+                                !string.IsNullOrWhiteSpace(_context.HostDisplayName);
+
+            _integrationNoticeTextRoot.style.display = isIntegration ? DisplayStyle.Flex : DisplayStyle.None;
+
+            if (isIntegration && _integrationNoticeText != null)
+            {
+                _integrationNoticeText.text = string.Format(
+                    L("blm.catalog.integration_notice", "Opened by {0}"),
+                    _context.HostDisplayName);
+            }
         }
 
         private void ApplyImportQueueEmptyLabelText()
